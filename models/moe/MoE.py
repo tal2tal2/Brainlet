@@ -7,7 +7,7 @@ from torch.optim import Adam, AdamW
 from torchmetrics import MeanSquaredError, MeanAbsoluteError, R2Score
 from torchvision.transforms import v2
 
-from losses.moe import MoELoss
+from losses.moeloss import MoELoss
 
 
 class MixtureOfExperts(LightningModule):

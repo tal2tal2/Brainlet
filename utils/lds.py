@@ -58,6 +58,7 @@ def generate_time_series(n_series=2, series_length=1000, dt=0.001, use_slds=True
         series_list.append((series, states))
     return series_list
 
+
 def simulate_series(initial_var, steps, dt, use_slds=False):
     """
     Simulate a ground-truth time series using the specified dynamics.
