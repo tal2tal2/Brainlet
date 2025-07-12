@@ -18,9 +18,9 @@ class RandomSeriesDataset(Dataset):
                 x_t = series[t]
                 state_t = states[t]
                 x_next = series[t + 1]
-                f_t, _ = dynamics(x_t, state_t)  # why do we do this? this seems cyclic
+                f_t, _ = dynamics(x_t, state_t)
                 # Target: [derivative, next state]
-                target = np.concatenate([f_t, x_next])  # why do we seperate the derivative from the next step?
+                target = np.concatenate([f_t, x_next])
                 self.samples.append((x_t, target))
 
     def __len__(self):

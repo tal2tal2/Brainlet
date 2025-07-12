@@ -34,7 +34,7 @@ name = 'simple_SLDS'
 use_slds = False
 dt = 0.001  # delta time
 
-os.makedirs('/results/Figures', exist_ok=True)
+os.makedirs('./results/Figures', exist_ok=True)
 
 
 def switching_lds_step(variable, state, transition_prob=1 / 200, noise_scale=0.0001):

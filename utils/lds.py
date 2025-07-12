@@ -5,7 +5,6 @@ def switching_lds_step(variable, state, transition_prob=1 / 200, noise_scale=0.0
     """
     Switching linear dynamical system step.
     """
-    # is there a reason for these constants?
     states_matrices = [
         np.array([[0.95, 0.05], [-0.1, 0.9]]),
         np.array([[1.05, -0.2], [0.3, 0.8]]),

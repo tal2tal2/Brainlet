@@ -2,48 +2,9 @@ import matplotlib.colors as mcolors
 import numpy as np
 import seaborn as sns
 import torch
-from lightning import Trainer
 from matplotlib import pyplot as plt
-from torch.utils.data import DataLoader
 
-from models.moe.MoE import MixtureOfExperts
-from settings import Config
-from utils.lds import switching_lds_step, continuous_dynamics, generate_time_series
-from utils.loaders import get_model_checkpoint
-
-
-def predict_time_series(model, time_series, steps, dt):
-    """
-    Compute one-step predictions for a given time series.
-    The model outputs a 4D vector: first two entries are the predicted derivative,
-    and the last two entries are the predicted next state.
-
-    Two predictions are computed:
-    - One based on integrating the predicted derivative.
-    - One directly using the last two elements of the model output.
-    """
-    # steps = len(time_series) - 1
-    pred_series_derivative = np.zeros((steps, 2))
-    pred_series_direct = np.zeros((steps, 2))
-    pred_state = np.zeros(steps, dtype=int)
-
-    for t in range(steps):
-        x_tensor = torch.tensor(time_series[t], dtype=torch.float32).unsqueeze(0)
-        with torch.no_grad():
-            output, gating = model(x_tensor)
-        output = output.squeeze(0).numpy()  # shape: (4,)
-
-        # Extract predicted derivative and direct next state prediction
-        pred_deriv = output[:2]
-        pred_next_state = output[2:]
-        pred_series_derivative[t] = time_series[t] + dt * pred_deriv
-        pred_series_direct[t] = pred_next_state
-
-        # Determine expert index (predicted state)
-        gating = gating.squeeze(0).numpy()
-        pred_state[t] = np.argmax(gating)
-
-    return pred_series_derivative, pred_series_direct, pred_state
+from utils.lds import continuous_dynamics
 
 
 def plot_colored_lines(series, states, cmap_name, label):
@@ -55,26 +16,8 @@ def plot_colored_lines(series, states, cmap_name, label):
     plt.plot([], [], color=cmap(0.5), label=label)  # For legend
 
 
-if __name__ == '__main__':
-    config = Config()
-    config.predict()
-    model = get_model_checkpoint(config.checkpoint, config.model)
-    name = 'slds'
-
-    # Define simulation parameters
-    gt_series, gt_states = generate_time_series(**config.generator.model_dump())[0]
-    trainer = Trainer(**config.get_trainer_params())
-    loader = DataLoader(gt_series, **config.data.model_dump())
-    all_preds = trainer.predict(model, loader)
-
-    derivative_list, direct_list, state_list = zip(*all_preds)
-    pred_series_derivative = torch.cat(derivative_list, dim=0)
-    pred_series_direct = torch.cat(direct_list, dim=0)
-    pred_state = torch.cat(state_list, dim=0)
-
-    # Model prediction rollout
-    # pred_series_derivative, pred_series_direct, pred_state = predict_time_series(model, gt_series, steps=steps, dt=dt)
-
+def time_series_prediction(gt_series, gt_states, pred_series_direct, pred_series_derivative, pred_state, name='plot',
+                           save_predictions: bool = False):
     plt.figure(figsize=(8, 6))
     plot_colored_lines(gt_series, gt_states, 'Dark2', 'Ground Truth Series')
     plot_colored_lines(pred_series_direct, pred_state, 'Pastel1', 'Predicted Series')
@@ -85,15 +28,15 @@ if __name__ == '__main__':
     plt.title('Time Series Prediction: Ground Truth vs Predicted')
     plt.legend()
     sns.despine()
-    # plt.savefig('./results/Figures/Predicted_vs_ground_truth_dynamics_' + name + '.pdf')
+    if save_predictions:
+        plt.savefig('./results/Figures/Predicted_vs_ground_truth_dynamics_' + name + '.pdf')
     plt.show()
 
-    time_axis = np.arange(config.generator.series_length) * config.generator.dt
-    offset = 1.5  # shift for y variable
 
-    # Create a new figure with a subplot (using subplot index 2 as provided)
-    # plt.figure(figsize=(10, 8))
-    # ax = plt.subplot(2, 1, 2)
+def evolution_with_background(generator, gt_series, gt_states, pred_series_direct, pred_series_derivative, pred_state,
+                              name='plot', save_predictions: bool = False):
+    time_axis = np.arange(generator.series_length) * generator.dt
+    offset = 1.5  # shift for y variable
     fig, axs = plt.subplots(2, 1, figsize=(10, 8), gridspec_kw={'height_ratios': [1, 2]})
 
     # Add background colors based on the state at each time step
@@ -102,8 +45,9 @@ if __name__ == '__main__':
     state_colors = {state: color for state, color in zip(unique_states, colors)}
 
     for i in range(len(time_axis) - 1):
+        pred_num = (pred_state[i].item() + 1) % len(unique_states)
         axs[0].axvspan(time_axis[i], time_axis[i + 1], color=state_colors[gt_states[i].item()], alpha=0.3)
-        axs[1].axvspan(time_axis[i], time_axis[i + 1], color=state_colors[pred_state[i].item()], alpha=0.3)
+        axs[1].axvspan(time_axis[i], time_axis[i + 1], color=state_colors[pred_num], alpha=0.3)
 
     # Plot x and y (with y shifted) for ground truth and predictions
     plt.plot(time_axis, gt_series[:, 0], 'b-', label='Ground Truth x')
@@ -121,11 +65,14 @@ if __name__ == '__main__':
     plt.legend()
     # plt.grid()
     sns.despine()
-    # plt.savefig('./results/Figures/Variables_Temporal_evolution_' + name + '.pdf')
+    if save_predictions:
+        plt.savefig('./results/Figures/Variables_Temporal_evolution_' + name + '.pdf')
 
     plt.tight_layout()
     plt.show()
 
+
+def dynamics_expert_assignment(model, name='plot', save_predictions: bool = False):
     # Create a grid over state space
     x_vals = np.linspace(-5, 5, 30)
     y_vals = np.linspace(-5, 5, 30)
@@ -184,7 +131,8 @@ if __name__ == '__main__':
     ax2.set_ylim([-5, 5])
     fig.colorbar(sc, ax=ax2, ticks=[0, 1, 2], label='Expert Index')
     sns.despine()
-    # plt.savefig('./results/Figures/Vector_field_' + name + '.pdf')
+    if save_predictions:
+        plt.savefig('./results/Figures/Vector_field_' + name + '.pdf')
 
     plt.tight_layout()
     plt.show()

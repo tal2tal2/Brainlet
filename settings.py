@@ -61,6 +61,7 @@ class Config(BaseSettings):
     use_fake_dataset: bool = True
     random_seed: int = 42
     checkpoint: Optional[str] = None
+    save_predictions: bool = False
 
     training_set: float = 0.8
     validation_set: float = 0.1
