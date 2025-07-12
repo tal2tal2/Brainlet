@@ -3,7 +3,7 @@ import torch
 from torch.utils.data import Dataset
 
 
-class FakeSeriesDataset(Dataset):
+class RandomSeriesDataset(Dataset):
     """
     Dataset class that creates samples from the generated time series.
     Each sample consists of an input x_t and a target which is the concatenation

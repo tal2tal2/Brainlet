@@ -8,29 +8,30 @@ from torchmetrics import MeanSquaredError, MeanAbsoluteError, R2Score
 from torchvision.transforms import v2
 
 from losses.moeloss import MoELoss
+from settings import ModelConfig
 
 
 class MixtureOfExperts(LightningModule):
-    def __init__(self, input_dim=2, output_dim=4, num_experts=3):
+    def __init__(self, config: ModelConfig, input_dim=2, output_dim=4):
         super(MixtureOfExperts, self).__init__()
-        self.num_experts = num_experts
+        self.num_experts = config.num_experts
         self.experts = nn.ModuleList([
             nn.Sequential(
                 nn.Linear(input_dim, output_dim)
                 # nn.Tanh(),
                 # nn.Linear(10, output_dim)
-            ) for _ in range(num_experts)
+            ) for _ in range(self.num_experts)
         ])
         self.gating_network = nn.Sequential(  # how much should we believe each expert
-            nn.Linear(input_dim, num_experts),
+            nn.Linear(input_dim, self.num_experts),
             nn.Softmax(dim=-1)
         )
         self.dt = 0.001
         self.augmentations = v2.Identity()
         self.criterion = MoELoss(self.dt)
         self.model_optimizer = "adam"
-        self.lr = 0.01
-        self.weight_decay = 0.0001
+        self.lr = config.learning_rate
+        self.weight_decay = config.weight_decay
 
         self.mse = MeanSquaredError()
         self.mae = MeanAbsoluteError()
@@ -65,6 +66,13 @@ class MixtureOfExperts(LightningModule):
         self.log_dict(test_metrics, on_epoch=True, prog_bar=True, sync_dist=True)
         return loss
 
+    def predict_step(self, batch: list[Tensor], batch_idx: int) -> Tensor:
+        loss, metrics = self._run_batch(batch)
+        # self.log('predict_loss', loss, sync_dist=True)
+        # test_metrics = {f'predict_{key}': value for key, value in metrics.items()}
+        # self.log_dict(test_metrics, on_epoch=True, prog_bar=True, sync_dist=True)
+        return loss
+
     def _run_batch(self, batch: list[Tensor], calculate_metrics: bool = True) -> tuple[
         Tensor, dict[str, Tensor]]:
 
@@ -76,7 +84,6 @@ class MixtureOfExperts(LightningModule):
         return loss, metrics
 
     def _calculate_metrics(self, outputs, targets, gating_weights):
-
         metrics = {
             "MSE": self.mse(outputs, targets),
             "MAE": self.mae(outputs, targets),

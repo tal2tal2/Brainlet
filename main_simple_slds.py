@@ -1,16 +1,16 @@
-#%%
+# %%
+import os
+import random
+
+import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 # !pip install --force-reinstall numpy==1.24
 import torch
 import torch.nn as nn
-import matplotlib.pyplot as plt
-import seaborn as sns
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
-import matplotlib.colors as mcolors
-import matplotlib.pyplot as plt
-import random
-import os
 
 os.environ['PYTHONHASHSEED'] = '42'
 random.seed(42)
@@ -25,16 +25,17 @@ general questions -
 why do we assume no actual way to model what the next state will be?
 """
 
-#%%
+# %%
 # ------------------------------
 # Dynamics Functions
 # ------------------------------
 
 name = 'simple_SLDS'
 use_slds = False
-dt = 0.001 # delta time
+dt = 0.001  # delta time
 
 os.makedirs('/results/Figures', exist_ok=True)
+
 
 def switching_lds_step(variable, state, transition_prob=1 / 200, noise_scale=0.0001):
     """
@@ -45,18 +46,18 @@ def switching_lds_step(variable, state, transition_prob=1 / 200, noise_scale=0.0
         np.array([[0.95, 0.05], [-0.1, 0.9]]),
         np.array([[1.05, -0.2], [0.3, 0.8]]),
         np.array([[0.85, 0.3], [-0.3, 1.0]])
-    ] # linear transformation
+    ]  # linear transformation
     state_constants = [
         np.array([0.1, -0.1]),
         np.array([-0.2, 0.2]),
         np.array([0.3, -0.3])
-    ] # baseline offset
+    ]  # baseline offset
 
     if np.random.rand() < transition_prob:
-        state = np.random.choice([0, 1, 2]) # randomly change state
+        state = np.random.choice([0, 1, 2])  # randomly change state
 
-    d_variable = states_matrices[state] @ variable - variable + state_constants[state]# compute delta from last pos
-    noise = np.random.randn(2) * noise_scale # add noise
+    d_variable = states_matrices[state] @ variable - variable + state_constants[state]  # compute delta from last pos
+    noise = np.random.randn(2) * noise_scale  # add noise
     return d_variable + noise, state
 
 
@@ -83,15 +84,15 @@ def generate_time_series(n_series=2, series_length=1000, dt=0.001, use_slds=True
     Generate multiple time series using either switching LDS or continuous dynamics.
     """
     series_list = []
-    for _ in range(n_series):# want n examples
-        series = np.zeros((series_length, 2)) # x, y
-        states = np.zeros(series_length, dtype=int) # state
-        series[0] = np.random.randn(2) #initialize randomly
+    for _ in range(n_series):  # want n examples
+        series = np.zeros((series_length, 2))  # x, y
+        states = np.zeros(series_length, dtype=int)  # state
+        series[0] = np.random.randn(2)  # initialize randomly
         state = np.random.choice([0, 1, 2])
         states[0] = state  # record initial state
         for t in range(1, series_length):
             dynamics = switching_lds_step if use_slds else continuous_dynamics
-            f, state = dynamics(series[t - 1], state) # why do we calculate only the delta
+            f, state = dynamics(series[t - 1], state)  # why do we calculate only the delta
             series[t] = series[t - 1] + dt * f
             states[t] = state
         series_list.append((series, states))
@@ -113,9 +114,9 @@ class TimeSeriesDataset(Dataset):
                 x_t = series[t]
                 state_t = states[t]
                 x_next = series[t + 1]
-                f_t, _ = dynamics(x_t, state_t) # why do we do this? this seems cyclic
+                f_t, _ = dynamics(x_t, state_t)  # why do we do this? this seems cyclic
                 # Target: [derivative, next state]
-                target = np.concatenate([f_t, x_next]) # why do we seperate the derivative from the next step?
+                target = np.concatenate([f_t, x_next])  # why do we seperate the derivative from the next step?
                 self.samples.append((x_t, target))
 
     def __len__(self):
@@ -141,7 +142,7 @@ class MixtureOfExperts(nn.Module):
                 # nn.Linear(10, output_dim)
             ) for _ in range(num_experts)
         ])
-        self.gating_network = nn.Sequential( # how much should we believe each expert
+        self.gating_network = nn.Sequential(  # how much should we believe each expert
             nn.Linear(input_dim, num_experts),
             nn.Softmax(dim=-1)
         )
@@ -165,7 +166,7 @@ def gating_regularization(gating_weights, lambda_peaky=0.1, lambda_diverse=0.1):
     return lambda_peaky * sample_entropy - lambda_diverse * avg_entropy
 
 
-#%%
+# %%
 # ------------------------------
 # Training Setup
 # ------------------------------
@@ -204,8 +205,7 @@ for epoch in range(num_epochs):
     losses.append(avg_loss)
     print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {avg_loss:.4f}")
 
-
-#%% Plot basic metrics
+# %% Plot basic metrics
 
 # Plot Loss Evolution
 plt.figure(figsize=(8, 6))
@@ -216,7 +216,7 @@ plt.title('Loss Evolution During Training')
 plt.legend()
 # plt.grid(True)
 sns.despine()
-plt.savefig('/results/Figures/loss_'+name+'.pdf')
+plt.savefig('/results/Figures/loss_' + name + '.pdf')
 plt.show()
 
 # Plot Gating Distributions
@@ -236,11 +236,11 @@ plt.legend(title='Category')
 # plt.grid(True)
 plt.xlim(0, 1)  # Bound the x-axis between 0 and 1
 sns.despine()
-plt.savefig('/results/Figures/Gating_weights_distributions_'+name+'.pdf')
+plt.savefig('/results/Figures/Gating_weights_distributions_' + name + '.pdf')
 plt.show()
 
 
-#%%
+# %%
 # ------------------------------
 # Helper Functions for Testing / Prediction
 # ------------------------------
@@ -295,7 +295,8 @@ def predict_time_series(model, time_series, steps, dt):
 
     return pred_series_derivative, pred_series_direct, pred_state
 
-#%%
+
+# %%
 # ------------------------------
 # Testing: Time Series Prediction
 # ------------------------------
@@ -312,21 +313,23 @@ gt_series, gt_states = simulate_series(initial_var, steps=steps, dt=dt)
 # Model prediction rollout
 pred_series_derivative, pred_series_direct, pred_state = predict_time_series(model, gt_series, steps=steps, dt=dt)
 
-#%%
+
+# %%
 
 def plot_colored_lines(series, states, cmap_name, label):
     """Helper function to plot lines colored by state."""
     cmap = plt.get_cmap(cmap_name)
     norm = mcolors.Normalize(vmin=min(states), vmax=max(states))
     for i in range(len(series) - 1):
-        plt.plot(series[i:i+2, 0], series[i:i+2, 1], color=cmap(norm(states[i])), alpha=0.7)
+        plt.plot(series[i:i + 2, 0], series[i:i + 2, 1], color=cmap(norm(states[i])), alpha=0.7)
     plt.plot([], [], color=cmap(0.5), label=label)  # For legend
+
 
 # Model prediction rollout
 
 plt.figure(figsize=(8, 6))
-plot_colored_lines(gt_series, gt_states, 'Pastel1', 'Ground Truth Series')
-plot_colored_lines(pred_series_direct, pred_state, 'Pastel2', 'Predicted Series')
+plot_colored_lines(gt_series, gt_states, 'Dark2', 'Ground Truth Series')
+plot_colored_lines(pred_series_direct, pred_state, 'Pastel1', 'Predicted Series')
 plot_colored_lines(pred_series_derivative, pred_state, 'Pastel2', 'Predicted Series Derivative')
 
 plt.xlabel('x')
@@ -335,21 +338,21 @@ plt.title('Time Series Prediction: Ground Truth vs Predicted')
 plt.legend()
 # plt.grid()
 sns.despine()
-plt.savefig('/results/Figures/Predicted_vs_ground_truth_dynamics_'+name+'.pdf')
+plt.savefig('/results/Figures/Predicted_vs_ground_truth_dynamics_' + name + '.pdf')
 plt.show()
 
-#%%
+# %%
 # ------------------------------
 # Plot 2: Evolution of x and y Over Time (with y shifted)
 # ------------------------------
 
-time_axis = np.arange(steps+1) * dt
+time_axis = np.arange(steps + 1) * dt
 offset = 1.5  # shift for y variable
 
 # Create a new figure with a subplot (using subplot index 2 as provided)
 # plt.figure(figsize=(10, 8))
 # ax = plt.subplot(2, 1, 2)
-fig, axs = plt.subplots(2, 1, figsize=(10,8), gridspec_kw={'height_ratios': [1, 2]})
+fig, axs = plt.subplots(2, 1, figsize=(10, 8), gridspec_kw={'height_ratios': [1, 2]})
 
 # Add background colors based on the state at each time step
 unique_states = np.unique(gt_states)
@@ -367,7 +370,8 @@ plt.plot(time_axis[:-1], pred_series_derivative[:, 0], 'g--', label='Predicted x
 
 plt.plot(time_axis, gt_series[:, 1] + offset, 'b-', alpha=0.7, label='Ground Truth y (shifted)')
 plt.plot(time_axis[:-1], pred_series_direct[:, 1] + offset, 'r--', alpha=0.7, label='Predicted y (shifted)')
-plt.plot(time_axis[:-1], pred_series_derivative[:, 1] + offset, 'g--', alpha=0.7, label='Predicted y Derivative (shifted)')
+plt.plot(time_axis[:-1], pred_series_derivative[:, 1] + offset, 'g--', alpha=0.7,
+         label='Predicted y Derivative (shifted)')
 
 plt.xlabel('Time')
 plt.ylabel('x and y (shifted)')
@@ -375,12 +379,12 @@ plt.title('Evolution of x and y Over Time with State Background')
 plt.legend()
 # plt.grid()
 sns.despine()
-plt.savefig('/results/Figures/Variables_Temporal_evolution_'+name+'.pdf')
+plt.savefig('/results/Figures/Variables_Temporal_evolution_' + name + '.pdf')
 
 plt.tight_layout()
 plt.show()
 
-#%%
+# %%
 # ------------------------------
 # Vector Field Plot: Dynamics & Expert Assignment
 # ------------------------------
@@ -442,8 +446,7 @@ ax2.set_xlim([-5, 5])
 ax2.set_ylim([-5, 5])
 fig.colorbar(sc, ax=ax2, ticks=[0, 1, 2], label='Expert Index')
 sns.despine()
-plt.savefig('/results/Figures/Vector_field_'+name+'.pdf')
+plt.savefig('/results/Figures/Vector_field_' + name + '.pdf')
 
 plt.tight_layout()
 plt.show()
-

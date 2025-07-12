@@ -1,12 +1,11 @@
-
-#%%
+# %%
 import numpy as np
 # !pip install --force-reinstall numpy==1.24
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
 import seaborn as sns
-import torch.optim as optim 
+import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 import matplotlib.colors as mcolors
 import random
@@ -23,7 +22,8 @@ torch.cuda.manual_seed_all(42)  # if you are using multi-GPU
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
-#%%
+
+# %%
 # ------------------------------
 # Helper Functions for Testing / Prediction
 # ------------------------------
@@ -40,8 +40,8 @@ def simulate_series(initial_var, steps, dt, use_slds=True, constant_decay=10., c
     states_series[0] = state
     for t in range(1, steps + 1):
         if use_slds:
-            f, state = dynamics(series[t - 1], state, constant_decay = constant_decay, constant_scaling = constant_scaling)
-        else: 
+            f, state = dynamics(series[t - 1], state, constant_decay=constant_decay, constant_scaling=constant_scaling)
+        else:
             f, state = dynamics(series[t - 1], state)
         series[t] = series[t - 1] + dt * f
         states_series[t] = state
@@ -77,11 +77,12 @@ def predict_time_series(model, time_series, steps, dt):
 
         # Determine expert index (predicted state)
         gating = gating.squeeze(0).numpy()
-        pred_state[t] = np.argmax(gating)# why do we assume one expert per state?
+        pred_state[t] = np.argmax(gating)  # why do we assume one expert per state?
 
     return pred_series_derivative, pred_series_direct, pred_state
 
-def match_expert_to_state(pred_state, gt_states, num_classes = 3):
+
+def match_expert_to_state(pred_state, gt_states, num_classes=3):
     # Step 1: Build confusion matrix
     confusion = np.zeros((num_classes, num_classes), dtype=int)
 
@@ -98,27 +99,32 @@ def match_expert_to_state(pred_state, gt_states, num_classes = 3):
     remapped_pred_state = np.array([mapping[p] for p in pred_state])
     return remapped_pred_state
 
+
 # Manual loss functions conputation
-def compute_MSE_loss(pred_series, gt_series): # is MSE the correct error? maybe we want something more akin to EMD
+def compute_MSE_loss(pred_series, gt_series):  # is MSE the correct error? maybe we want something more akin to EMD
     assert pred_series.shape == gt_series.shape, "Shape mismatch between predicted and ground truth series"
 
-    mse_losses = np.mean((pred_series - gt_series)**2)
+    mse_losses = np.mean((pred_series - gt_series) ** 2)
     return mse_losses
+
 
 def compute_physics_loss(pred_series_direct, pred_series_derivative):
     return compute_MSE_loss(pred_series_direct, pred_series_derivative)
+
 
 def compute_states_mov_avg_corr(remapped_pred_state, gt_states):
     state_correctness = (remapped_pred_state == gt_states[:-1]).astype(int)  # 1 if correct, 0 if wrong
 
     window_size = 100  # you can tune this
-    return np.convolve(state_correctness, np.ones(window_size)/window_size, mode='valid')
+    return np.convolve(state_correctness, np.ones(window_size) / window_size, mode='valid')
+
 
 def compute_regularization(gating_weights, lambda_peaky=0.1, lambda_diverse=0.3):
     sample_entropy = -np.sum(gating_weights * np.log(gating_weights + 1e-8), axis=-1).mean()
     p_mean = gating_weights.mean(axis=0)
     avg_entropy = -np.sum(p_mean * np.log(p_mean + 1e-8))
     return lambda_peaky * sample_entropy - lambda_diverse * avg_entropy
+
 
 # Plot functions
 def plot_mean_MSE(meaned_results_df):
@@ -133,16 +139,18 @@ def plot_mean_MSE(meaned_results_df):
     plt.show()
     return
 
+
 def plot_mean_phys_loss(meaned_results_df):
     plt.figure(figsize=(8, 5))
     plt.plot(meaned_results_df['physics_loss'].values, label="Mean physics loss")
     plt.xlabel("Iteration")
     plt.ylabel("Mean physics loss")
     plt.legend()
-    plt.grid(true)
+    plt.grid(True)
     plt.tight_layout()
     plt.show()
     return
+
 
 def plot_mean_gating_reg(meaned_results_df):
     plt.figure(figsize=(8, 5))
@@ -150,10 +158,11 @@ def plot_mean_gating_reg(meaned_results_df):
     plt.xlabel("Iteration")
     plt.ylabel("Mean gating regularization")
     plt.legend()
-    plt.grid(true)
+    plt.grid(True)
     plt.tight_layout()
     plt.show()
     return
+
 
 def plot_mean_reg_loss(meaned_results_df):
     plt.figure(figsize=(8, 5))
@@ -161,10 +170,11 @@ def plot_mean_reg_loss(meaned_results_df):
     plt.xlabel("Iteration")
     plt.ylabel("Mean regularization loss")
     plt.legend()
-    plt.grid(true)
+    plt.grid(True)
     plt.tight_layout()
     plt.show()
     return
+
 
 def plot_states_pred_acc(meaned_results_df):
     plt.figure(figsize=(8, 5))
@@ -172,7 +182,7 @@ def plot_states_pred_acc(meaned_results_df):
     plt.xlabel("Iteration")
     plt.ylabel("Mean state accuracy")
     plt.legend()
-    plt.grid(true)
+    plt.grid(True)
     plt.tight_layout()
     plt.show()
     return
@@ -182,13 +192,13 @@ def plot_states_pred_acc(meaned_results_df):
 # Dynamics Functions
 # ------------------------------
 
-name='slds'
+name = 'slds'
 use_slds = True
 dt = 0.001
 
 
-
-def switching_lds_step(variable, state, transition_prob=1 / 200, noise_scale=0.0001, constant_scaling = 0.5, constant_decay = 10.):
+def switching_lds_step(variable, state, transition_prob=1 / 200, noise_scale=0.0001, constant_scaling=0.5,
+                       constant_decay=10.):
     """
     Switching linear dynamical system step.
     """
@@ -206,7 +216,8 @@ def switching_lds_step(variable, state, transition_prob=1 / 200, noise_scale=0.0
     if np.random.rand() < transition_prob:
         state = np.random.choice([0, 1, 2])
 
-    d_variable = constant_scaling * states_matrices[state] @ variable - constant_decay* (variable - state_constants[state])
+    d_variable = constant_scaling * states_matrices[state] @ variable - constant_decay * (
+                variable - state_constants[state])
     noise = np.random.randn(2) * noise_scale
     return d_variable + noise, state
 
@@ -229,7 +240,8 @@ def continuous_dynamics(variable, state=None):
 # Time Series Generation & Dataset
 # ------------------------------
 
-def generate_time_series(n_series=2, series_length=1000, dt=0.001, use_slds=True, constant_decay = 10., constant_scaling = 0.0):
+def generate_time_series(n_series=2, series_length=1000, dt=0.001, use_slds=True, constant_decay=10.,
+                         constant_scaling=0.0):
     """
     Generate multiple time series using either switching LDS or continuous dynamics.
     """
@@ -243,7 +255,8 @@ def generate_time_series(n_series=2, series_length=1000, dt=0.001, use_slds=True
         for t in range(1, series_length):
             dynamics = switching_lds_step if use_slds else continuous_dynamics
             if use_slds:
-                f, state = dynamics(series[t - 1], state, constant_decay=constant_decay, constant_scaling=constant_scaling)    
+                f, state = dynamics(series[t - 1], state, constant_decay=constant_decay,
+                                    constant_scaling=constant_scaling)
             else:
                 f, state = dynamics(series[t - 1], state)
             series[t] = series[t - 1] + dt * f
@@ -280,7 +293,7 @@ class TimeSeriesDataset(Dataset):
         return torch.tensor(x, dtype=torch.float32), torch.tensor(target, dtype=torch.float32)
 
 
-def train_on_data(series_list, dataset, dataloader, num_epochs=10, min_delta=1e-4, patience=20, batch_size=64):    
+def train_on_data(series_list, dataset, dataloader, num_epochs=10, min_delta=1e-4, patience=20, batch_size=64):
     # Initialize model, optimizer, and loss function
     model = MixtureOfExperts(input_dim=2, output_dim=4, num_experts=3)
     optimizer = optim.Adam(model.parameters(), lr=0.01)
@@ -292,14 +305,14 @@ def train_on_data(series_list, dataset, dataloader, num_epochs=10, min_delta=1e-
     # Contiguous slicing
     train_dataset = torch.utils.data.Subset(dataset, list(range(0, train_size)))
     val_dataset = torch.utils.data.Subset(dataset, list(range(train_size, len(dataset))))
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True) # what
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)  # what
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
-    
+
     best_val_loss = float('inf')
     epochs_no_improve = 0
     losses = []
     lambda_phys = 0.1
-    
+
     for epoch in range(num_epochs):
         model.train()
         total_loss = 0.0
@@ -309,12 +322,12 @@ def train_on_data(series_list, dataset, dataloader, num_epochs=10, min_delta=1e-
             output, gating_weights = model(x)
             loss_mse = criterion(output, target)
             loss_reg = gating_regularization(gating_weights, lambda_peaky=0.1, lambda_diverse=0.3)
-    
+
             # f_pred - gt_f
             f_pred = output[:, :2]  # First two elements are the predicted derivative
             x_next_pred = output[:, 2:]  # Last two elements are the predicted next state
             physics_loss = criterion(x_next_pred, x + dt * f_pred)
-    
+
             loss = loss_mse + loss_reg + lambda_phys * physics_loss
             loss.backward()
             optimizer.step()
@@ -354,25 +367,25 @@ def train_on_data(series_list, dataset, dataloader, num_epochs=10, min_delta=1e-
 
     return losses, x, model, gating_weights
 
-def test_on_data(steps = 5000, dt = 0.001, constant_decay=10., constant_scaling=0.0):
+
+def test_on_data(steps=5000, dt=0.001, constant_decay=10., constant_scaling=0.0):
     # initial_var = np.random.randn(1)
     initial_var = series_list[0][0][0]
     initial_state = initial_var.copy()  # using same value for prediction
 
     # Ground truth simulation using continuous dynamics
-    gt_series, gt_states = simulate_series(initial_var, steps=steps, dt=dt, use_slds=use_slds, constant_decay=10., constant_scaling=0.0)
+    gt_series, gt_states = simulate_series(initial_var, steps=steps, dt=dt, use_slds=use_slds, constant_decay=10.,
+                                           constant_scaling=0.0)
 
     # gt_series, gt_states = series_list[2]
 
     pred_series_derivative, pred_series_direct, pred_state = predict_time_series(model, gt_series, steps=steps, dt=dt)
-    
+
     # Model prediction rollout
     return pred_series_derivative, pred_series_direct, pred_state, gt_series, gt_states
-    
 
 
-
-#% Check ground truth dynamics
+# % Check ground truth dynamics
 steps = 15000
 dt = 0.001
 initial_var = np.random.randn(2)
@@ -381,9 +394,9 @@ initial_state = initial_var.copy()  # using same value for prediction
 # Ground truth simulation using continuous dynamics
 gt_series, gt_states = simulate_series(initial_var, steps=steps, dt=dt, use_slds=use_slds)
 
-time_axis = np.arange(steps+1) * dt
-offset = 0#1.5  # shift for y variable
-fig, axs = plt.subplots(2, 1, figsize=(10,8), gridspec_kw={'height_ratios': [1, 2]})
+time_axis = np.arange(steps + 1) * dt
+offset = 0  # 1.5  # shift for y variable
+fig, axs = plt.subplots(2, 1, figsize=(10, 8), gridspec_kw={'height_ratios': [1, 2]})
 unique_states = np.unique(gt_states)
 colors = plt.cm.viridis(np.linspace(0, 1, len(unique_states)))  # pastel colors
 state_colors = {state: color for state, color in zip(unique_states, colors)}
@@ -399,7 +412,7 @@ sns.despine()
 plt.show()
 
 
-#%%
+# %%
 # ------------------------------
 # Mixture of Experts Model & Regularization
 # ------------------------------
@@ -450,17 +463,17 @@ def gating_regularization(gating_weights, lambda_peaky=0.1, lambda_diverse=0.3):
     return lambda_peaky * sample_entropy - lambda_diverse * avg_entropy
 
 
-#%% 
+# %%
 # ------------------------------
 # Fast simulation - "main"
 # ------------------------------
 
 # Simulation configuration
-repetitions = 25 # default is 10
+repetitions = 25  # default is 10
 batch_size = 256
 
 constant_decay = np.linspace(5, 20, 4)
-constant_scaling = np.linspace(0,0.1, 11)
+constant_scaling = np.linspace(0, 0.1, 11)
 # Initialize simulation
 product_constants = itertools.product(constant_decay, constant_scaling)
 decay_list, scaling_list = zip(*product_constants)
@@ -469,9 +482,9 @@ constants = {
     "constant_scaling": list(scaling_list)
 }
 
-pd.set_option('display.max_rows', None)      # Show all rows
-pd.set_option('display.max_columns', None)   # Show all columns
-pd.set_option('display.width', None)         # Don't wrap lines
+pd.set_option('display.max_rows', None)  # Show all rows
+pd.set_option('display.max_columns', None)  # Show all columns
+pd.set_option('display.width', None)  # Don't wrap lines
 pd.set_option('display.max_colwidth', None)  # Show full content in each cell
 
 const_df = pd.DataFrame(constants)
@@ -495,18 +508,21 @@ for const_scaling in constant_scaling:
         print(f"const_scaling: {const_scaling}")
 
         # Generate series and create dataset 
-        series_list = generate_time_series(n_series=50, series_length=5000, dt=0.001, use_slds=True, constant_decay = const_decay, constant_scaling = const_scaling)
+        series_list = generate_time_series(n_series=50, series_length=5000, dt=0.001, use_slds=True,
+                                           constant_decay=const_decay, constant_scaling=const_scaling)
         dataset = TimeSeriesDataset(series_list, continuous_dynamics, dt=0.001)
         dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
-        
+
         print(f"train iteration number {rep}...")
-        losses, x, model, gating_weights = train_on_data(series_list, dataset, dataloader, num_epochs=20, patience=5, batch_size=batch_size)
+        losses, x, model, gating_weights = train_on_data(series_list, dataset, dataloader, num_epochs=20, patience=5,
+                                                         batch_size=batch_size)
         print("done")
 
         # The testing data is generated inside test_on_data
-        pred_series_derivative, pred_series_direct, pred_state, gt_series, gt_states = test_on_data(steps = 25000, constant_decay = const_decay, constant_scaling = const_scaling)
+        pred_series_derivative, pred_series_direct, pred_state, gt_series, gt_states = test_on_data(steps=25000,
+                                                                                                    constant_decay=const_decay,
+                                                                                                    constant_scaling=const_scaling)
         remapped_pred_state = match_expert_to_state(pred_state, gt_states)
-        
 
         # Compute losses
         MSE_loss = compute_MSE_loss(pred_series_direct, gt_series[1:])
@@ -538,7 +554,7 @@ results_df = pd.DataFrame(all_rep_results)
 results_df.to_csv("/results/simulation_metrics.csv", index=False)
 
 # plots
-grouped = results_df.groupby(['const_decay','const_scaling'])
+grouped = results_df.groupby(['const_decay', 'const_scaling'])
 mean_values = grouped.mean().reset_index()
 filtered_decay_5 = mean_values[mean_values["const_decay"] == 5]
 filtered_decay_10 = mean_values[mean_values["const_decay"] == 10]
@@ -548,15 +564,15 @@ filtered_decay_20 = mean_values[mean_values["const_decay"] == 20]
 fig_width = 14
 fig_height = 6
 
-os.makedirs('/results/plots' , exist_ok=True)
-#%%
-fig, axs = plt.subplots(2,2, figsize=(fig_width,fig_height))
+os.makedirs('/results/plots', exist_ok=True)
+# %%
+fig, axs = plt.subplots(2, 2, figsize=(fig_width, fig_height))
 axs = axs.flatten()
 # df2plot = mean_values.sort_values(by='const_scaling').reset_index()
-sns.barplot (data=filtered_decay_5, x="const_scaling", y="MSE_loss", label="const_decay 5", ax=axs[0])
-sns.barplot (data=filtered_decay_10, x="const_scaling", y="MSE_loss", label="const_decay 10", ax=axs[1])
-sns.barplot (data=filtered_decay_15, x="const_scaling", y="MSE_loss", label="const_decay 15", ax=axs[2])
-sns.barplot (x="const_scaling", y="MSE_loss", label="const_decay_20", data=filtered_decay_20, ax=axs[3])
+sns.barplot(data=filtered_decay_5, x="const_scaling", y="MSE_loss", label="const_decay 5", ax=axs[0])
+sns.barplot(data=filtered_decay_10, x="const_scaling", y="MSE_loss", label="const_decay 10", ax=axs[1])
+sns.barplot(data=filtered_decay_15, x="const_scaling", y="MSE_loss", label="const_decay 15", ax=axs[2])
+sns.barplot(x="const_scaling", y="MSE_loss", label="const_decay_20", data=filtered_decay_20, ax=axs[3])
 
 plt.suptitle("MSE loss", fontsize=14)
 
@@ -564,13 +580,13 @@ sns.despine()
 plt.savefig('/results/plots/mean_MSE_loss.png')
 plt.show()
 
-fig, axs = plt.subplots(2,2, figsize=(fig_width,fig_height))
+fig, axs = plt.subplots(2, 2, figsize=(fig_width, fig_height))
 axs = axs.flatten()
 
-sns.barplot (x="const_scaling", y="physics_loss", data=filtered_decay_5, label="const_decay 5", ax=axs[0])
-sns.barplot (x="const_scaling", y="physics_loss", data=filtered_decay_10, label="const_decay 10", ax=axs[1])
-sns.barplot (x="const_scaling", y="physics_loss", data=filtered_decay_15, label="const_decay 15", ax=axs[2])
-sns.barplot (x="const_scaling", y="physics_loss", data=filtered_decay_20, label="const_decay_20", ax=axs[3])
+sns.barplot(x="const_scaling", y="physics_loss", data=filtered_decay_5, label="const_decay 5", ax=axs[0])
+sns.barplot(x="const_scaling", y="physics_loss", data=filtered_decay_10, label="const_decay 10", ax=axs[1])
+sns.barplot(x="const_scaling", y="physics_loss", data=filtered_decay_15, label="const_decay 15", ax=axs[2])
+sns.barplot(x="const_scaling", y="physics_loss", data=filtered_decay_20, label="const_decay_20", ax=axs[3])
 
 plt.suptitle("Physics loss", fontsize=14)
 
@@ -578,13 +594,13 @@ sns.despine()
 plt.savefig('/results/plots/mean_physics_loss.png')
 plt.show()
 
-fig, axs = plt.subplots(2,2, figsize=(fig_width,fig_height))
+fig, axs = plt.subplots(2, 2, figsize=(fig_width, fig_height))
 axs = axs.flatten()
 
-sns.barplot (x="const_scaling", y="gating_reg_loss", data=filtered_decay_5, label="const_decay 5", ax=axs[0])
-sns.barplot (x="const_scaling", y="gating_reg_loss", data=filtered_decay_10, label="const_decay 10", ax=axs[1])
-sns.barplot (x="const_scaling", y="gating_reg_loss", data=filtered_decay_15, label="const_decay 15", ax=axs[2])
-sns.barplot (x="const_scaling", y="gating_reg_loss", data=filtered_decay_20, label="const_decay_20", ax=axs[3])
+sns.barplot(x="const_scaling", y="gating_reg_loss", data=filtered_decay_5, label="const_decay 5", ax=axs[0])
+sns.barplot(x="const_scaling", y="gating_reg_loss", data=filtered_decay_10, label="const_decay 10", ax=axs[1])
+sns.barplot(x="const_scaling", y="gating_reg_loss", data=filtered_decay_15, label="const_decay 15", ax=axs[2])
+sns.barplot(x="const_scaling", y="gating_reg_loss", data=filtered_decay_20, label="const_decay_20", ax=axs[3])
 
 plt.suptitle("Gating regularization loss", fontsize=14)
 
@@ -592,13 +608,13 @@ sns.despine()
 plt.savefig('/results/plots/mean_gating_reg_loss.png')
 plt.show()
 
-fig, axs = plt.subplots(2,2, figsize=(fig_width,fig_height))
+fig, axs = plt.subplots(2, 2, figsize=(fig_width, fig_height))
 axs = axs.flatten()
 
-sns.barplot (x="const_scaling", y="state_accuracy", data=filtered_decay_5, label="const_decay 5", ax=axs[0])
-sns.barplot (x="const_scaling", y="state_accuracy", data=filtered_decay_10, label="const_decay 10", ax=axs[1])
-sns.barplot (x="const_scaling", y="state_accuracy", data=filtered_decay_15, label="const_decay 15", ax=axs[2])
-sns.barplot (x="const_scaling", y="state_accuracy", data=filtered_decay_20, label="const_decay_20", ax=axs[3])
+sns.barplot(x="const_scaling", y="state_accuracy", data=filtered_decay_5, label="const_decay 5", ax=axs[0])
+sns.barplot(x="const_scaling", y="state_accuracy", data=filtered_decay_10, label="const_decay 10", ax=axs[1])
+sns.barplot(x="const_scaling", y="state_accuracy", data=filtered_decay_15, label="const_decay 15", ax=axs[2])
+sns.barplot(x="const_scaling", y="state_accuracy", data=filtered_decay_20, label="const_decay_20", ax=axs[3])
 
 plt.suptitle("State accuracy", fontsize=14)
 
@@ -610,13 +626,13 @@ plt.show()
 # sns.barplot (x="const_scaling", y="moving_avg_accuracy", data=mean_values)
 # plt.savefig('/results/plots/mean_moving_avg_accuracy.png')
 
-fig, axs = plt.subplots(2,2, figsize=(fig_width,fig_height))
+fig, axs = plt.subplots(2, 2, figsize=(fig_width, fig_height))
 axs = axs.flatten()
 
-sns.barplot (x="const_scaling", y="moving_avg_accuracy_mean", data=filtered_decay_5, label="const_decay 5", ax=axs[0])
-sns.barplot (x="const_scaling", y="moving_avg_accuracy_mean", data=filtered_decay_10, label="const_decay 10", ax=axs[1])
-sns.barplot (x="const_scaling", y="moving_avg_accuracy_mean", data=filtered_decay_15, label="const_decay 15", ax=axs[2])
-sns.barplot (x="const_scaling", y="moving_avg_accuracy_mean", data=filtered_decay_20, label="const_decay_20", ax=axs[3])
+sns.barplot(x="const_scaling", y="moving_avg_accuracy_mean", data=filtered_decay_5, label="const_decay 5", ax=axs[0])
+sns.barplot(x="const_scaling", y="moving_avg_accuracy_mean", data=filtered_decay_10, label="const_decay 10", ax=axs[1])
+sns.barplot(x="const_scaling", y="moving_avg_accuracy_mean", data=filtered_decay_15, label="const_decay 15", ax=axs[2])
+sns.barplot(x="const_scaling", y="moving_avg_accuracy_mean", data=filtered_decay_20, label="const_decay_20", ax=axs[3])
 
 plt.suptitle("Moving avrage accuracy", fontsize=14)
 
@@ -624,9 +640,9 @@ sns.despine()
 plt.savefig('/results/plots/mean_moving_avg_accuracy_mean.png')
 plt.show()
 
-#%%
+# %%
 
-#%%
+# %%
 # ------------------------------
 # Training Setup
 # ------------------------------
@@ -638,8 +654,7 @@ dataloader = DataLoader(dataset, batch_size=64, shuffle=True)
 
 losses, x, model, gating_weights = train_on_data(series_list, dataset, dataloader)
 
-
-#%% Plot basic metrics
+# %% Plot basic metrics
 # Plot Loss Evolution
 plt.figure(figsize=(8, 6))
 plt.plot(losses, label='Training Loss')
@@ -649,8 +664,8 @@ plt.title('Loss Evolution During Training')
 plt.legend()
 # plt.grid(True)
 sns.despine()
-os.makedirs('/results/Figures' , exist_ok=True)
-plt.savefig('/results/Figures/loss_'+name+'.pdf')
+os.makedirs('/results/Figures', exist_ok=True)
+plt.savefig('/results/Figures/loss_' + name + '.pdf')
 plt.show()
 
 # Plot Gating Distributions
@@ -670,18 +685,18 @@ plt.legend(title='Category')
 # plt.grid(True)
 plt.xlim(0, 1)  # Bound the x-axis between 0 and 1
 sns.despine()
-plt.savefig('/results/Figures/Gating_weights_distributions_'+name+'.pdf')
+plt.savefig('/results/Figures/Gating_weights_distributions_' + name + '.pdf')
 plt.show()
 
-#%%
+# %%
 # -------------------------------
 # Testing: Time Series Prediction
 # -------------------------------
 pred_series_derivative, pred_series_direct, pred_state, gt_series, gt_states = test_on_data()
 steps = 5000
 
-#%
-#%%
+# %
+# %%
 remapped_pred_state = match_expert_to_state(pred_state, gt_states)
 
 # Compute state prediction accuracy
@@ -698,7 +713,7 @@ state_correctness = (remapped_pred_state == gt_states[:-1]).astype(int)  # 1 if 
 # 2. Compute tracking metric: moving average
 # -----------------------------
 window_size = 100  # you can tune this
-moving_avg_correctness = np.convolve(state_correctness, np.ones(window_size)/window_size, mode='valid')
+moving_avg_correctness = np.convolve(state_correctness, np.ones(window_size) / window_size, mode='valid')
 
 # -----------------------------
 # 3. Find breaking points
@@ -723,7 +738,8 @@ plt.plot(time_axis_tracking, moving_avg_correctness, label='Tracking Accuracy (M
 # if len(breaking_indices) > 0:
 #     plt.axvline(x=first_break_time * dt, color='orange', linestyle='--', label='First Break Point')
 
-plt.text(0.02, 0.95, f"State Accuracy: {state_accuracy:.4f}\nconstant_scaling: 0.0\nconstant_decay: 10", transform=plt.gca().transAxes, 
+plt.text(0.02, 0.95, f"State Accuracy: {state_accuracy:.4f}\nconstant_scaling: 0.0\nconstant_decay: 10",
+         transform=plt.gca().transAxes,
          fontsize=12, color='black', verticalalignment='top', bbox=dict(facecolor='white', alpha=0.8))
 plt.xlabel('Time [s]')
 plt.ylabel('Tracking Accuracy')
@@ -733,20 +749,20 @@ plt.grid(True)
 plt.tight_layout()
 plt.savefig('/results/Figures/state_tracking_accuracy_testing.pdf')
 plt.show()
-#%
+# %
 
 # #%%
 
-#%
+# %
 # ------------------------------
 # Plot 2: Evolution of x and y Over Time (with y shifted)
 # ------------------------------
 
-time_axis = np.arange(steps+1) * dt
+time_axis = np.arange(steps + 1) * dt
 offset = 1.5  # shift for y variable
 
 # Create a new figure with a subplot (using subplot index 2 as provided)
-fig, axs = plt.subplots(2, 1, figsize=(10,8), gridspec_kw={'height_ratios': [1, 2]})
+fig, axs = plt.subplots(2, 1, figsize=(10, 8), gridspec_kw={'height_ratios': [1, 2]})
 
 # Add background colors based on the state at each time step
 unique_states = np.unique(gt_states)
@@ -754,23 +770,22 @@ unique_states = np.unique(gt_states)
 colors = plt.cm.viridis(np.linspace(0, 1, len(unique_states)))  # pastel colors
 state_colors = {state: color for state, color in zip(unique_states, colors)}
 
-
 # Debug - check if one state is dominating
 np.unique(remapped_pred_state, return_counts=True)
-
 
 for i in range(len(time_axis) - 1):
     axs[0].axvspan(time_axis[i], time_axis[i + 1], color=state_colors[gt_states[i]], alpha=0.3)
     axs[1].axvspan(time_axis[i], time_axis[i + 1], color=state_colors[(remapped_pred_state[i])], alpha=0.3)
 
 # Plot x and y (with y shifted) for ground truth and predictions
-plt.plot(time_axis, gt_series[:steps+1, 0], 'b-', label='Ground Truth x')
+plt.plot(time_axis, gt_series[:steps + 1, 0], 'b-', label='Ground Truth x')
 plt.plot(time_axis[:-1], pred_series_direct[:, 0], 'r--', label='Predicted x')
 plt.plot(time_axis[:-1], pred_series_derivative[:, 0], 'g--', label='Predicted x Derivative')
 
-plt.plot(time_axis, gt_series[:steps+1, 1] + offset, 'b-', alpha=0.7, label='Ground Truth y (shifted)')
+plt.plot(time_axis, gt_series[:steps + 1, 1] + offset, 'b-', alpha=0.7, label='Ground Truth y (shifted)')
 plt.plot(time_axis[:-1], pred_series_direct[:, 1] + offset, 'r--', alpha=0.7, label='Predicted y (shifted)')
-plt.plot(time_axis[:-1], pred_series_derivative[:, 1] + offset, 'g--', alpha=0.7, label='Predicted y Derivative (shifted)')
+plt.plot(time_axis[:-1], pred_series_derivative[:, 1] + offset, 'g--', alpha=0.7,
+         label='Predicted y Derivative (shifted)')
 
 plt.xlabel('Time')
 plt.ylabel('x and y (shifted)')
@@ -778,13 +793,12 @@ plt.title('Evolution of x and y Over Time with State Background')
 plt.legend()
 # plt.grid()
 sns.despine()
-plt.savefig('/results/Figures/Variables_Temporal_evolution_'+name+'.pdf')
+plt.savefig('/results/Figures/Variables_Temporal_evolution_' + name + '.pdf')
 
 plt.tight_layout()
 plt.show()
 
-
-#%%
+# %%
 # ------------------------------
 # Vector Field Plot: Dynamics & Expert Assignment
 # ------------------------------
@@ -851,10 +865,6 @@ plt.show()
 
 # plt.tight_layout()
 # plt.show()
-
-
-
-
 
 
 # %%
