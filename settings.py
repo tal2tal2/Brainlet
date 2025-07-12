@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Optional
 
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import WandbLogger
@@ -23,11 +24,11 @@ class ModelOptimizer(str, Enum):
 
 class TrainerConfig(BaseModel):
     max_epochs: int = 30
-    accumulate_grad_batches: int = 16
+    accumulate_grad_batches: int = 1
 
 
 class DataLoaderConfig(BaseModel):
-    batch_size: int = 64
+    batch_size: int = 128
     num_workers: int = 4
     pin_memory: bool = True
     persistent_workers: bool = True
@@ -59,6 +60,7 @@ class Config(BaseSettings):
     data_dir: str = r"D:\TheFolder\projects\School\Master\yoni\data"
     use_fake_dataset: bool = True
     random_seed: int = 42
+    checkpoint: Optional[str] = None
 
     training_set: float = 0.8
     validation_set: float = 0.1
@@ -68,6 +70,7 @@ class Config(BaseSettings):
     lightning: LightningConfig = LightningConfig()
     generator: GeneratorConfig = GeneratorConfig()
     model: ModelConfig = ModelConfig()
+    model_cb: Optional[ModelCheckpoint] = None
     model_config = SettingsConfigDict(
         env_file='config.env',
         env_file_encoding='utf-8',
@@ -81,16 +84,17 @@ class Config(BaseSettings):
     def get_trainer_params(self) -> dict:
         params = self.lightning.model_dump()
         params.update(self.trainer.model_dump())
+        self.model_cb = ModelCheckpoint(
+                monitor="val_loss",
+                mode="min",
+                save_top_k=1,
+                verbose=True)
         params['callbacks'] = [
             # EarlyStopping(
             #     monitor="train_loss_epoch",
             #     patience=8,
             #     min_delta=0.01),
-            ModelCheckpoint(
-                monitor="val_loss",
-                mode="min",
-                save_top_k=1,
-                verbose=True),
+            self.model_cb,
         ]
         params['logger'] = WandbLogger()
         return params
@@ -104,3 +108,7 @@ class Config(BaseSettings):
             "data loader": self.data.model_dump(),
             "random_seed": self.random_seed,
         }
+
+    def predict(self) -> None:
+        self.generator.n_series=1
+        self.generator.series_length=15000

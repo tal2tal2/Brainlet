@@ -216,7 +216,7 @@ plt.title('Loss Evolution During Training')
 plt.legend()
 # plt.grid(True)
 sns.despine()
-plt.savefig('/results/Figures/loss_' + name + '.pdf')
+plt.savefig('./results/Figures/loss_' + name + '.pdf')
 plt.show()
 
 # Plot Gating Distributions
@@ -236,7 +236,7 @@ plt.legend(title='Category')
 # plt.grid(True)
 plt.xlim(0, 1)  # Bound the x-axis between 0 and 1
 sns.despine()
-plt.savefig('/results/Figures/Gating_weights_distributions_' + name + '.pdf')
+plt.savefig('./results/Figures/Gating_weights_distributions_' + name + '.pdf')
 plt.show()
 
 
@@ -338,7 +338,7 @@ plt.title('Time Series Prediction: Ground Truth vs Predicted')
 plt.legend()
 # plt.grid()
 sns.despine()
-plt.savefig('/results/Figures/Predicted_vs_ground_truth_dynamics_' + name + '.pdf')
+plt.savefig('./results/Figures/Predicted_vs_ground_truth_dynamics_' + name + '.pdf')
 plt.show()
 
 # %%
@@ -379,7 +379,7 @@ plt.title('Evolution of x and y Over Time with State Background')
 plt.legend()
 # plt.grid()
 sns.despine()
-plt.savefig('/results/Figures/Variables_Temporal_evolution_' + name + '.pdf')
+plt.savefig('./results/Figures/Variables_Temporal_evolution_' + name + '.pdf')
 
 plt.tight_layout()
 plt.show()
@@ -446,7 +446,7 @@ ax2.set_xlim([-5, 5])
 ax2.set_ylim([-5, 5])
 fig.colorbar(sc, ax=ax2, ticks=[0, 1, 2], label='Expert Index')
 sns.despine()
-plt.savefig('/results/Figures/Vector_field_' + name + '.pdf')
+plt.savefig('./results/Figures/Vector_field_' + name + '.pdf')
 
 plt.tight_layout()
 plt.show()

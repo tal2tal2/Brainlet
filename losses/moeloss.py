@@ -4,7 +4,7 @@ from models.moe.utils import gating_regularization
 
 
 class MoELoss(torch.nn.Module):
-    def __init__(self, dt, lambda_peaky=0.1, lambda_diverse=0.1, lambda_phys=0.01):
+    def __init__(self, dt, lambda_peaky=0.1, lambda_diverse=0.1, lambda_phys=0.1):
         super(MoELoss, self).__init__()
         self.lambda_peaky = lambda_peaky
         self.lambda_diverse = lambda_diverse

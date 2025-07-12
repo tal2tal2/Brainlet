@@ -1,18 +1,18 @@
 # %%
+import itertools
+import os
+import random
+
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import seaborn as sns
 # !pip install --force-reinstall numpy==1.24
 import torch
 import torch.nn as nn
-import matplotlib.pyplot as plt
-import seaborn as sns
 import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
-import matplotlib.colors as mcolors
-import random
-import os
 from scipy.optimize import linear_sum_assignment
-import itertools
-import pandas as pd
+from torch.utils.data import Dataset, DataLoader
 
 os.environ['PYTHONHASHSEED'] = '42'
 random.seed(42)

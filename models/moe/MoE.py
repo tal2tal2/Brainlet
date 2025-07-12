@@ -1,7 +1,10 @@
 from typing import Union
 
+import seaborn as sns
 import torch
+import wandb
 from lightning import LightningModule
+from matplotlib import pyplot as plt
 from torch import nn, Tensor
 from torch.optim import Adam, AdamW
 from torchmetrics import MeanSquaredError, MeanAbsoluteError, R2Score
@@ -26,12 +29,14 @@ class MixtureOfExperts(LightningModule):
             nn.Linear(input_dim, self.num_experts),
             nn.Softmax(dim=-1)
         )
-        self.dt = 0.001
+        self.dt = 0.001 # TODO
         self.augmentations = v2.Identity()
         self.criterion = MoELoss(self.dt)
         self.model_optimizer = "adam"
         self.lr = config.learning_rate
         self.weight_decay = config.weight_decay
+
+        self.test_gating = []
 
         self.mse = MeanSquaredError()
         self.mae = MeanAbsoluteError()
@@ -60,28 +65,52 @@ class MixtureOfExperts(LightningModule):
         return loss
 
     def test_step(self, batch: list[Tensor], batch_idx: int) -> Tensor:
-        loss, metrics = self._run_batch(batch)
+        loss, metrics = self._run_batch(batch, test=True)
         self.log('test_loss', loss, sync_dist=True)
         test_metrics = {f'test_{key}': value for key, value in metrics.items()}
         self.log_dict(test_metrics, on_epoch=True, prog_bar=True, sync_dist=True)
         return loss
 
-    def predict_step(self, batch: list[Tensor], batch_idx: int) -> Tensor:
-        loss, metrics = self._run_batch(batch)
-        # self.log('predict_loss', loss, sync_dist=True)
-        # test_metrics = {f'predict_{key}': value for key, value in metrics.items()}
-        # self.log_dict(test_metrics, on_epoch=True, prog_bar=True, sync_dist=True)
-        return loss
+    def on_test_epoch_end(self) -> None:
+        all_gates = torch.cat(self.test_gating, dim=0).cpu()
+        self.test_gating.clear()
+        fig = plt.figure(figsize=(8, 6))
+        for i in range(all_gates.shape[1]):
+            sns.kdeplot(all_gates[:, i], label=f'Expert {i}')
+        plt.xlabel('Gating Weight')
+        plt.ylabel('Density')
+        plt.title('Test Gating Weight Distribution')
+        plt.xlim(0, 1)
+        sns.despine()
+        plt.tight_layout()
+        self.logger.experiment.log({
+            'test_gating_distribution': wandb.Image(fig)
+        })
+        plt.close(fig)
 
-    def _run_batch(self, batch: list[Tensor], calculate_metrics: bool = True) -> tuple[
+    def predict_step(self, batch: Tensor, batch_idx: int) -> tuple[Tensor, Tensor, Tensor]:
+        model_dtype = next(self.parameters()).dtype
+        series = batch.to(dtype=model_dtype)
+        preds, weights = self(series)
+        deriv_pred = preds[:,:2]
+        direct_pred = preds[:,2:]
+        deriv_series = series + deriv_pred*self.dt
+        state_series = weights.argmax(dim=1)
+        return deriv_series, direct_pred, state_series
+
+    def _run_batch(self, batch: list[Tensor], calculate_metrics: bool = True, test: bool = False) -> tuple[
         Tensor, dict[str, Tensor]]:
 
         inputs, targets = batch
         outputs, gating_weights = self(inputs)
         metrics = self._calculate_metrics(outputs.clone(), targets.clone(), gating_weights) if calculate_metrics else {}
+        if test: self._calculate_test_metrics(gating_weights)
         loss = self.criterion(outputs, targets, inputs, gating_weights)
 
         return loss, metrics
+
+    def _calculate_test_metrics(self, gating_weights):
+        self.test_gating.append(gating_weights.detach())
 
     def _calculate_metrics(self, outputs, targets, gating_weights):
         metrics = {

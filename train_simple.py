@@ -18,9 +18,7 @@ def seed_setup(random_seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-
-if __name__ == '__main__':
-    import wandb
+def main():
 
     config = Config()
     seed_setup(config.random_seed)
@@ -34,3 +32,11 @@ if __name__ == '__main__':
     trainer.fit(model, datamodule)
     model.eval()
     trainer.test(model, datamodule)
+
+
+if __name__ == '__main__':
+    import wandb
+    try:
+        main()
+    finally:
+        wandb.finish()

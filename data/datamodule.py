@@ -9,7 +9,7 @@ class DataModule(LightningDataModule):
     def __init__(self, config):
         super().__init__()
         self.data_loader = config.data.model_dump()
-        self.generator = config.generator.model_dump()
+        self.generator = config.generator
         self.data_dir = config.data_dir
         self.fake = config.use_fake_dataset
 
@@ -39,6 +39,6 @@ class DataModule(LightningDataModule):
         return DataLoader(self.dataset_predict, shuffle=False, **self.data_loader)
 
     def get_random_series(self):
-        series_list = generate_time_series(**self.generator)
-        dataset = RandomSeriesDataset(series_list, continuous_dynamics, self.generator.get('dt'))
+        series_list = generate_time_series(**self.generator.model_dump())
+        dataset = RandomSeriesDataset(series_list, continuous_dynamics, self.generator.dt)
         return dataset
