@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.optimize import linear_sum_assignment
 
 
 def switching_lds_step(variable, state, transition_prob=1 / 200, noise_scale=0.0001):
@@ -73,3 +74,26 @@ def simulate_series(initial_var, steps, dt, use_slds=False):
         series[t] = series[t - 1] + dt * f
         states_series[t] = state
     return series, states_series
+
+def match_expert_to_state(pred_state, gt_states, num_classes=3):
+
+    pred = np.array(pred_state).astype(int).flatten()
+    gt = np.array(gt_states).astype(int).flatten()
+    assert pred.shape == gt.shape, "pred_state and gt_states must align"
+
+    # Step 1: Build confusion matrix
+    confusion = np.zeros((num_classes, num_classes), dtype=int)
+
+    for p, g in zip(pred, gt):
+        confusion[p, g] += 1
+
+    # Step 2: Solve optimal assignment (Hungarian algorithm)
+    row_ind, col_ind = linear_sum_assignment(-confusion)  # maximize matches
+
+    # Step 3: Build mapping
+    mapping = dict(zip(row_ind, col_ind))
+
+    # Step 4: Apply mapping
+    remapped_pred_state = np.array([mapping[p] for p in pred])
+    return remapped_pred_state
+

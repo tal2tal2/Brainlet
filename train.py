@@ -26,7 +26,7 @@ def main():
     datamodule = DataModule(config)
 
     # Initialize model, optimizer, and loss function
-    model = MixtureOfExperts(config.model)
+    model = MixtureOfExperts(config.model, config.generator)
 
     trainer = Trainer(**config.get_trainer_params())
     trainer.fit(model, datamodule)

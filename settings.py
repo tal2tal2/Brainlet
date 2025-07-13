@@ -23,7 +23,7 @@ class ModelOptimizer(str, Enum):
 
 
 class TrainerConfig(BaseModel):
-    max_epochs: int = 30
+    max_epochs: int = 20
     accumulate_grad_batches: int = 1
 
 
@@ -47,6 +47,7 @@ class ModelConfig(BaseModel):
     num_experts: int = 3
     learning_rate: float = 1e-3
     weight_decay: float = 1e-5
+    model_optimizer: str = "adam"
 
 
 class GeneratorConfig(BaseModel):
@@ -54,6 +55,14 @@ class GeneratorConfig(BaseModel):
     series_length: int = 10000
     dt: float = 0.001
     use_slds: bool = False
+    input_len: int = 5
+    target_len: int = 3
+
+    def get_generator_params(self) -> dict:
+        return {'n_series': self.n_series,
+                'series_length': self.series_length,
+                'dt': self.dt,
+                'use_slds': self.use_slds,}
 
 
 class Config(BaseSettings):
@@ -113,3 +122,4 @@ class Config(BaseSettings):
     def predict(self) -> None:
         self.generator.n_series=1
         self.generator.series_length=15000
+

@@ -4,7 +4,7 @@ import seaborn as sns
 import torch
 from matplotlib import pyplot as plt
 
-from utils.lds import continuous_dynamics
+from utils.lds import continuous_dynamics, match_expert_to_state
 
 
 def plot_colored_lines(series, states, cmap_name, label):
@@ -18,6 +18,7 @@ def plot_colored_lines(series, states, cmap_name, label):
 
 def time_series_prediction(gt_series, gt_states, pred_series_direct, pred_series_derivative, pred_state, name='plot',
                            save_predictions: bool = False):
+    gt_series, gt_states = gt_series[:len(pred_series_direct),:], gt_states[:len(pred_series_direct)]
     plt.figure(figsize=(8, 6))
     plot_colored_lines(gt_series, gt_states, 'Dark2', 'Ground Truth Series')
     plot_colored_lines(pred_series_direct, pred_state, 'Pastel1', 'Predicted Series')
@@ -35,7 +36,8 @@ def time_series_prediction(gt_series, gt_states, pred_series_direct, pred_series
 
 def evolution_with_background(generator, gt_series, gt_states, pred_series_direct, pred_series_derivative, pred_state,
                               name='plot', save_predictions: bool = False):
-    time_axis = np.arange(generator.series_length) * generator.dt
+    time_axis = np.arange(generator.series_length-generator.input_len-generator.target_len+1) * generator.dt
+    gt_series, gt_states = gt_series[:len(pred_series_direct),:], gt_states[:len(pred_series_direct)]
     offset = 1.5  # shift for y variable
     fig, axs = plt.subplots(2, 1, figsize=(10, 8), gridspec_kw={'height_ratios': [1, 2]})
 
@@ -43,11 +45,11 @@ def evolution_with_background(generator, gt_series, gt_states, pred_series_direc
     unique_states = np.unique(gt_states)
     colors = plt.cm.Pastel1(np.linspace(0, 1, len(unique_states)))  # pastel colors
     state_colors = {state: color for state, color in zip(unique_states, colors)}
+    pred_state = match_expert_to_state(pred_state, gt_states, num_classes=len(unique_states))
 
     for i in range(len(time_axis) - 1):
-        pred_num = (pred_state[i].item() + 1) % len(unique_states)
         axs[0].axvspan(time_axis[i], time_axis[i + 1], color=state_colors[gt_states[i].item()], alpha=0.3)
-        axs[1].axvspan(time_axis[i], time_axis[i + 1], color=state_colors[pred_num], alpha=0.3)
+        axs[1].axvspan(time_axis[i], time_axis[i + 1], color=state_colors[pred_state[i].item()], alpha=0.3)
 
     # Plot x and y (with y shifted) for ground truth and predictions
     plt.plot(time_axis, gt_series[:, 0], 'b-', label='Ground Truth x')

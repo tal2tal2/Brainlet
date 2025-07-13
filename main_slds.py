@@ -469,7 +469,7 @@ def gating_regularization(gating_weights, lambda_peaky=0.1, lambda_diverse=0.3):
 # ------------------------------
 
 # Simulation configuration
-repetitions = 25  # default is 10
+repetitions = 10  # default is 10
 batch_size = 256
 
 constant_decay = np.linspace(5, 20, 4)

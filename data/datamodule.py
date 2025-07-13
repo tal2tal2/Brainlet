@@ -39,6 +39,6 @@ class DataModule(LightningDataModule):
         return DataLoader(self.dataset_predict, shuffle=False, **self.data_loader)
 
     def get_random_series(self):
-        series_list = generate_time_series(**self.generator.model_dump())
-        dataset = RandomSeriesDataset(series_list, continuous_dynamics, self.generator.dt)
+        series_list = generate_time_series(**self.generator.get_generator_params())
+        dataset = RandomSeriesDataset(series_list, continuous_dynamics, self.generator)
         return dataset
