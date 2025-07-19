@@ -2,7 +2,7 @@ import numpy as np
 from scipy.optimize import linear_sum_assignment
 
 
-def switching_lds_step(variable, state, transition_prob=1 / 200, noise_scale=0.0001):
+def switching_lds_step(variable, state, transition_prob=1 / 200, noise_scale=0.0001, constant_scaling = 0.5, constant_decay = 10.):
     """
     Switching linear dynamical system step.
     """
@@ -12,15 +12,15 @@ def switching_lds_step(variable, state, transition_prob=1 / 200, noise_scale=0.0
         np.array([[0.85, 0.3], [-0.3, 1.0]])
     ]  # linear transformation
     state_constants = [
-        np.array([0.1, -0.1]),
-        np.array([-0.2, 0.2]),
-        np.array([0.3, -0.3])
+        np.array([2.5, -0.5]),
+        np.array([-0.5, 0.5]),
+        np.array([0., -0.])
     ]  # baseline offset
 
     if np.random.rand() < transition_prob:
         state = np.random.choice([0, 1, 2])  # randomly change state
 
-    d_variable = states_matrices[state] @ variable - variable + state_constants[state]  # compute delta from last pos
+    d_variable = constant_scaling * states_matrices[state] @ variable - constant_decay* (variable - state_constants[state])  # compute delta from last pos
     noise = np.random.randn(2) * noise_scale  # add noise
     return d_variable + noise, state
 
@@ -79,7 +79,7 @@ def match_expert_to_state(pred_state, gt_states, num_classes=3):
 
     pred = np.array(pred_state).astype(int).flatten()
     gt = np.array(gt_states).astype(int).flatten()
-    assert pred.shape == gt.shape, "pred_state and gt_states must align"
+    assert pred.shape == gt.shape, f"pred_state and gt_states must align, pred.shape={pred.shape}, gt.shape={gt.shape}"
 
     # Step 1: Build confusion matrix
     confusion = np.zeros((num_classes, num_classes), dtype=int)

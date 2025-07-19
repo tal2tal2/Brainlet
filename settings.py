@@ -28,7 +28,7 @@ class TrainerConfig(BaseModel):
 
 
 class DataLoaderConfig(BaseModel):
-    batch_size: int = 128
+    batch_size: int = 256
     num_workers: int = 4
     pin_memory: bool = True
     persistent_workers: bool = True
@@ -48,6 +48,9 @@ class ModelConfig(BaseModel):
     learning_rate: float = 1e-3
     weight_decay: float = 1e-5
     model_optimizer: str = "adam"
+    lambda_peaky:float = 0.1
+    lambda_diverse:float = 0.04
+    lambda_phys:float = 0.3
 
 
 class GeneratorConfig(BaseModel):
@@ -117,6 +120,7 @@ class Config(BaseSettings):
             "lightning": self.lightning.model_dump(),
             "data loader": self.data.model_dump(),
             "random_seed": self.random_seed,
+            "generator": self.generator.model_dump(),
         }
 
     def predict(self) -> None:

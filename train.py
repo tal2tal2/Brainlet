@@ -22,7 +22,7 @@ def main():
 
     config = Config()
     seed_setup(config.random_seed)
-    wandb.init(project='Brainlet')
+    wandb.init(project='Brainlet', config=config.get_wandb_config())
     datamodule = DataModule(config)
 
     # Initialize model, optimizer, and loss function

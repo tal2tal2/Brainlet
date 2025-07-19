@@ -74,7 +74,7 @@ def evolution_with_background(generator, gt_series, gt_states, pred_series_direc
     plt.show()
 
 
-def dynamics_expert_assignment(model, name='plot', save_predictions: bool = False):
+def dynamics_expert_assignment(model, name='plot', save_predictions: bool = False, idx:int = 0):
     # Create a grid over state space
     x_vals = np.linspace(-5, 5, 30)
     y_vals = np.linspace(-5, 5, 30)
@@ -91,17 +91,23 @@ def dynamics_expert_assignment(model, name='plot', save_predictions: bool = Fals
     U_gt = np.array(U_gt).reshape(X.shape)
     V_gt = np.array(V_gt).reshape(X.shape)
 
+    L_in = model.generator.input_len
+    # from (N,2) → (N, L_in, 2)
+    hist = np.repeat(grid_points[:, None, :], L_in, axis=1)
+    hist_tensor = torch.tensor(hist, dtype=torch.float32).to(model.device)
+
     # Model predictions on grid (using the first two output values as derivative)
     model.eval()
     with torch.no_grad():
-        grid_tensor = torch.tensor(grid_points, dtype=torch.float32)
-        pred, gating = model(grid_tensor)
-        pred = pred.numpy()
+        # grid_tensor = torch.tensor(grid_points, dtype=torch.float32)
+        pred, gating = model(hist_tensor)
+        pred = pred.cpu().numpy()[:,idx,:]
         pred_deriv = pred[:, 0:2]  # predicted derivative
         U_pred = pred_deriv[:, 0].reshape(X.shape)
         V_pred = pred_deriv[:, 1].reshape(X.shape)
-        expert_idx = torch.argmax(gating, dim=-1).numpy().reshape(X.shape)
-        expert_value = torch.max(gating, dim=-1)[0].numpy().reshape(X.shape)
+        gate1 = gating.cpu().numpy()[:,idx,:]
+        expert_idx = gate1.argmax(axis=1).reshape(X.shape)
+        expert_value = gate1.max(axis=1).reshape(X.shape)
 
     # For reference, the ground truth "next state" would be x + dt * f(x)
     U_gt_next = U_gt  # derivative remains the same for reference
@@ -137,4 +143,68 @@ def dynamics_expert_assignment(model, name='plot', save_predictions: bool = Fals
         plt.savefig('./results/Figures/Vector_field_' + name + '.pdf')
 
     plt.tight_layout()
+    plt.show()
+
+def states_plot(gt_states, dt, pred_state, gt_series, pred_series_direct):
+    # Plot states (ground truth vs. predicted)
+    time_axis = np.arange(len(gt_states) + 1) * dt
+    offset = 0  # 1.5  # shift for y variable
+    fig, axs = plt.subplots(4, 1, figsize=(20, 8),
+                            gridspec_kw={'height_ratios': [1, 1, 0.5, 1]})
+    unique_states = np.unique(gt_states)
+    colors = plt.cm.viridis(
+        np.linspace(0, 1, len(unique_states)))  # pastel colors
+    state_colors = {state: color for state, color in zip(unique_states, colors)}
+
+    remapped_pred_state = match_expert_to_state(pred_state, gt_states)
+
+    # Create a 2D array for the background using pcolormesh
+    background = np.zeros((1, len(time_axis) - 1))  # Note: len-1
+    for i, state in enumerate(gt_states[:-1]):  # Note: gt_states[:-1]
+        background[0, i] = state
+    axs[0].imshow(background, aspect='auto', cmap='viridis', zorder=0,
+                  alpha=0.6, extent=[0, len(time_axis) - 1, -1, 3])
+    axs[0].plot(gt_series[:, 0], 'b-', label='Ground Truth x', zorder=10)
+    axs[0].plot(gt_series[:, 1] + offset, 'b-',
+                label='Ground Truth y (shifted)')
+    axs[0].set_title('Ground Truth')
+    axs[0].set_xticks([])
+    plt.xlabel('Time')
+
+    # Create a 2D array for the background using pcolormesh
+    background = np.zeros((1, len(time_axis) - 1))  # Note: len-1
+    for i, state in enumerate(remapped_pred_state[:-1]):  # Note: gt_states[:-1]
+        background[0, i] = state
+    axs[1].imshow(background, aspect='auto', cmap='viridis', zorder=0,
+                  alpha=0.6, extent=[0, len(time_axis) - 1, -1, 3])
+    axs[1].plot(pred_series_direct[:, 0], 'b-', label='Ground Truth x',
+                zorder=10)
+    axs[1].plot(pred_series_direct[:, 1] + offset, 'b-',
+                label='Ground Truth y (shifted)')
+    axs[1].set_title('Predictions')
+    axs[1].set_xticks([])
+
+    window_size = 100
+    state_correctness = (remapped_pred_state == gt_states).astype(int)
+    # moving_avg_correctness = np.convolve(state_correctness, np.ones(window_size)/window_size, mode='valid')
+    # axs[2].plot(state_correctness)
+    axs[2].fill_between(np.arange(len(state_correctness)), state_correctness,
+                        step='mid', alpha=0.5)
+    axs[2].set_title('State Tracking Accuracy (Moving Avg)')
+    axs[2].set_xlabel('Time')
+    axs[2].set_ylabel('Moving Avg Accuracy')
+    axs[2].set_xlim(0, len(time_axis) - 1)
+    axs[2].set_ylim(0, 1.1)
+
+    # 1. Plot x and y (ground truth vs. predicted)
+    axs[3].plot(gt_series[:, 0], label='Ground Truth x')
+    axs[3].plot(pred_series_direct[:, 0], label='Predicted x')
+    axs[3].plot(gt_series[:, 1], label='Ground Truth y')
+    axs[3].plot(pred_series_direct[:, 1], label='Predicted y')
+    axs[3].set_title(
+        f'Time Series Prediction')
+    axs[3].set_xlim(0, len(time_axis) - 1)
+    plt.legend()
+
+    sns.despine()
     plt.show()

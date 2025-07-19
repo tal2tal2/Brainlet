@@ -19,7 +19,13 @@ class MixtureOfExperts(LightningModule):
         super(MixtureOfExperts, self).__init__()
         self.config = config
         self.generator = generator
-
+        # self.domains = nn.ModuleList([
+        #     nn.Identity(),  # raw time‐series
+        #     lambda x: x[:, 1:, :] - x[:, :-1, :],  # velocity (B,L_in-1,D) – you may pad/upsample
+        #     lambda x: torch.fft.rfft(x, dim=1).abs(),  # magnitude spectrum
+        #     lambda x: torch.stack([torch.sin(torch.fft.rfft(x, dim=1).angle()),
+        #                     torch.cos(torch.fft.rfft(x, dim=1).angle())], dim=-1), # phase fft
+        # ])
         self.experts = nn.ModuleList([
             nn.Sequential(
                 nn.Flatten(start_dim=1),
@@ -38,7 +44,7 @@ class MixtureOfExperts(LightningModule):
             nn.Softmax(dim=-1)
         )
         self.augmentations = v2.Identity()
-        self.criterion = MoELoss(self.generator.dt, self.generator.target_len)
+        self.criterion = MoELoss(self.generator, self.config)
 
         self.test_gating = []
 
@@ -57,19 +63,37 @@ class MixtureOfExperts(LightningModule):
     def training_step(self, batch: list[Tensor], batch_idx: int) -> Tensor:
         inputs, targets = batch
         inputs = self.augmentations(inputs)
-        loss, _ = self._run_batch([inputs, targets], calculate_metrics=False)
+        losses, _ = self._run_batch([inputs, targets], calculate_metrics=False)
+        loss_mse, physics_loss, loss_peaky, loss_diverse = losses
+        loss = loss_mse + physics_loss + loss_peaky + loss_diverse
+        self.log('train_loss_mse', loss_mse, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log('train_loss_physics', physics_loss, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log('train_loss_peaky', loss_peaky, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log('train_loss_diverse', loss_diverse, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log('train_loss', loss, on_epoch=True, prog_bar=True, sync_dist=True)
         return loss
 
     def validation_step(self, batch: list[Tensor], batch_idx: int) -> Tensor:
-        loss, metrics = self._run_batch(batch)
+        losses, metrics = self._run_batch(batch)
+        loss_mse, physics_loss, loss_peaky, loss_diverse = losses
+        loss = loss_mse + physics_loss + loss_peaky + loss_diverse
+        self.log('val_loss_mse', loss_mse, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log('val_loss_physics', physics_loss, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log('val_loss_peaky', loss_peaky, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log('val_loss_diverse', loss_diverse, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log('val_loss', loss, sync_dist=True)
         val_metrics = {f'val_{key}': value for key, value in metrics.items()}
         self.log_dict(val_metrics, on_epoch=True, prog_bar=True, sync_dist=True)
         return loss
 
     def test_step(self, batch: list[Tensor], batch_idx: int) -> Tensor:
-        loss, metrics = self._run_batch(batch, test=True)
+        losses, metrics = self._run_batch(batch, test=True)
+        loss_mse, physics_loss, loss_peaky, loss_diverse = losses
+        loss = loss_mse + physics_loss + loss_peaky + loss_diverse
+        self.log('test_loss_mse', loss_mse, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log('test_loss_physics', physics_loss, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log('test_loss_peaky', loss_peaky, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log('test_loss_diverse', loss_diverse, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log('test_loss', loss, sync_dist=True)
         test_metrics = {f'test_{key}': value for key, value in metrics.items()}
         self.log_dict(test_metrics, on_epoch=True, prog_bar=True, sync_dist=True)
@@ -111,9 +135,8 @@ class MixtureOfExperts(LightningModule):
         outputs, gating_weights = self(inputs)
         metrics = self._calculate_metrics(outputs.clone(), targets.clone(), gating_weights) if calculate_metrics else {}
         if test: self._calculate_test_metrics(gating_weights)
-        loss = self.criterion(outputs, targets, inputs, gating_weights)
-
-        return loss, metrics
+        losses = self.criterion(outputs, targets, inputs, gating_weights)
+        return losses, metrics
 
     def _calculate_test_metrics(self, gating_weights):
         self.test_gating.append(gating_weights.detach())
