@@ -12,19 +12,24 @@ class DataModule(LightningDataModule):
         self.generator = config.generator
         self.data_dir = config.data_dir
         self.fake = config.use_fake_dataset
-
+        self.test_series=[]
         self.split = [config.training_set, config.validation_set, 1 - config.training_set - config.validation_set]
+        self.predict = False
 
     def setup(self, stage):
         if stage == 'fit':
-            dataset = self.get_random_series()
-            self.train_dataset, self.val_dataset, self.test_dataset = random_split(dataset, self.split)
+            train_series, val_series, self.test_series = self.get_random_series()
+            self.train_dataset = RandomSeriesDataset(train_series, continuous_dynamics, self.generator)
+            self.val_dataset = RandomSeriesDataset(val_series, continuous_dynamics, self.generator)
             print(f"Train: {len(self.train_dataset)} samples, val: {len(self.val_dataset)} samples")
         if stage == 'test':
+            self.test_dataset = RandomSeriesDataset(self.test_series, continuous_dynamics, self.generator)
             print(f"Test: {len(self.test_dataset)} samples")
         if stage == 'predict':
-            self.dataset_predict = self.get_random_series()
-            print(f"Predict: {len(self.dataset_predict)} samples")
+            self.predict = True
+            predict_series = self.get_random_series()
+            self.predict_dataset = RandomSeriesDataset([predict_series], continuous_dynamics, self.generator)
+            print(f"Predict: {len(self.predict_dataset)} samples")
 
     def train_dataloader(self):
         return DataLoader(self.train_dataset, shuffle=True, **self.data_loader)
@@ -36,9 +41,14 @@ class DataModule(LightningDataModule):
         return DataLoader(self.test_dataset, shuffle=False, **self.data_loader)
 
     def predict_dataloader(self):
-        return DataLoader(self.dataset_predict, shuffle=False, **self.data_loader)
+        return DataLoader(self.predict_dataset, shuffle=False, **self.data_loader)
 
     def get_random_series(self):
         series_list = generate_time_series(**self.generator.get_generator_params())
-        dataset = RandomSeriesDataset(series_list, continuous_dynamics, self.generator)
-        return dataset
+        length = len(series_list)
+        series_train = series_list[:int(length * self.split[0])]
+        series_val = series_list[int(length * self.split[0]):int(length * (self.split[0]+self.split[1]))]
+        series_test = series_list[int(length * (self.split[0]+self.split[1])):]
+        if self.predict:
+            return series_list[0]
+        return series_train, series_val, series_test
