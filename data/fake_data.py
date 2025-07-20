@@ -24,20 +24,23 @@ class RandomSeriesDataset(Dataset):
                 x_t = series[t:t+input_len]
                 x_next = series[t+input_len:t+input_len+target_len]
                 fts = []
+                state_list=[]
                 # need loop to predict next derivatives
                 for i in range(target_len):
                     idx = t + input_len + i
                     f_t, _ = dynamics(series[idx], states[idx])
                     fts.append(f_t)
+                    state_list.append(states[idx])
                 target = np.concatenate([np.stack(fts, axis=0), x_next], axis=1)
-                self.samples.append((x_t, target))
+                state_list = np.stack(state_list, axis=0)
+                self.samples.append((x_t, target, state_list))
 
     def __len__(self):
         return len(self.samples)
 
     def __getitem__(self, idx):
-        x, target = self.samples[idx]
-        return torch.tensor(x, dtype=torch.float32), torch.tensor(target, dtype=torch.float32)
+        x, target, states = self.samples[idx]
+        return torch.tensor(x, dtype=torch.float32), torch.tensor(target, dtype=torch.float32), torch.tensor(states, dtype=torch.int8)
 
 def test():
     config = Config()

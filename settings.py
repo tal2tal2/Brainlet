@@ -25,6 +25,7 @@ class ModelOptimizer(str, Enum):
 class TrainerConfig(BaseModel):
     max_epochs: int = 20
     accumulate_grad_batches: int = 1
+    min_epochs: int = 5
 
 
 class DataLoaderConfig(BaseModel):
@@ -98,8 +99,8 @@ class Config(BaseSettings):
         params = self.lightning.model_dump()
         params.update(self.trainer.model_dump())
         self.model_cb = ModelCheckpoint(
-                monitor="val_loss",
-                mode="min",
+                monitor="val_accuracy_t_0",
+                mode="max",
                 save_top_k=1,
                 verbose=True)
         params['callbacks'] = [

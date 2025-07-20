@@ -37,8 +37,6 @@ if __name__ == '__main__':
     next_direct = pred_series_direct[:, 0, :]  # → (num_samples, D)
     next_derivative = pred_series_derivative[:, 0, :]  # → (num_samples, D)
     next_pred_state = pred_state[:, 0]  # → (num_samples,)
-    next_series = gt_series[:, 0]
-    next_state = gt_states[:, 0]
     if predict_extras:
         time_series_prediction(gt_series, gt_states, next_direct, next_derivative, next_pred_state, name,
                                config.save_predictions)
