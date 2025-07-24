@@ -24,7 +24,7 @@ def switching_lds_step(variable, state, transition_prob=1 / 200, noise_scale=0.0
         state = np.random.choice([0, 1, 2])  # randomly change state
 
     d_variable = constant_scaling * states_matrices[state] @ variable - constant_decay * (
-                variable - state_constants[state])  # compute delta from last pos
+            variable - state_constants[state])  # compute delta from last pos
     noise = np.random.randn(2) * noise_scale  # add noise
     return d_variable + noise, state
 
@@ -112,6 +112,12 @@ def save_series(path: str, n_series=1000, series_length=10000):
     np.save(os.path.join(path, "series.npy"), all_series)  # shape (N, T, 2)
     np.save(os.path.join(path, "states.npy"), all_states)  # shape (N, T)
     print(f"Saved {n_series} series to {path}")
+
+
+def load_subset(path, start=0, end=-1):
+    series = np.load(os.path.join(path, "series.npy"), mmap_mode='r')[start:end]  # doesn't read entire file
+    states = np.load(os.path.join(path, "states.npy"), mmap_mode='r')[start:end]
+    return list(zip(series, states))
 
 
 if __name__ == "__main__":
