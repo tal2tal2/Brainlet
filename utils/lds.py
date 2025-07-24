@@ -1,8 +1,11 @@
+import os
+
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
 
-def switching_lds_step(variable, state, transition_prob=1 / 200, noise_scale=0.0001, constant_scaling = 0.5, constant_decay = 10.):
+def switching_lds_step(variable, state, transition_prob=1 / 200, noise_scale=0.0001, constant_scaling=0.5,
+                       constant_decay=10.):
     """
     Switching linear dynamical system step.
     """
@@ -20,7 +23,8 @@ def switching_lds_step(variable, state, transition_prob=1 / 200, noise_scale=0.0
     if np.random.rand() < transition_prob:
         state = np.random.choice([0, 1, 2])  # randomly change state
 
-    d_variable = constant_scaling * states_matrices[state] @ variable - constant_decay* (variable - state_constants[state])  # compute delta from last pos
+    d_variable = constant_scaling * states_matrices[state] @ variable - constant_decay * (
+                variable - state_constants[state])  # compute delta from last pos
     noise = np.random.randn(2) * noise_scale  # add noise
     return d_variable + noise, state
 
@@ -75,8 +79,8 @@ def simulate_series(initial_var, steps, dt, use_slds=False):
         states_series[t] = state
     return series, states_series
 
-def match_expert_to_state(pred_state, gt_states, num_classes=3):
 
+def match_expert_to_state(pred_state, gt_states, num_classes=3):
     pred = np.array(pred_state).astype(int).flatten()
     gt = np.array(gt_states).astype(int).flatten()
     assert pred.shape == gt.shape, f"pred_state and gt_states must align, pred.shape={pred.shape}, gt.shape={gt.shape}"
@@ -97,3 +101,18 @@ def match_expert_to_state(pred_state, gt_states, num_classes=3):
     remapped_pred_state = np.array([mapping[p] for p in pred])
     return remapped_pred_state
 
+
+def save_series(path: str, n_series=1000, series_length=10000):
+    series_list = generate_time_series(n_series=n_series, series_length=series_length)
+
+    # Convert list of tuples into two arrays
+    all_series = np.stack([s for s, _ in series_list])  # shape: (N, T, 2)
+    all_states = np.stack([z for _, z in series_list])  # shape: (N, T)
+
+    np.save(os.path.join(path, "series.npy"), all_series)  # shape (N, T, 2)
+    np.save(os.path.join(path, "states.npy"), all_states)  # shape (N, T)
+    print(f"Saved {n_series} series to {path}")
+
+
+if __name__ == "__main__":
+    save_series("../data/dataset", n_series=100, series_length=10000)

@@ -1,0 +1,8 @@
+.idea/
+data/dataset/
+*.out
+__pycache__
+.nfs*
+wandb/
+current_run*.txt
+lightning_logs
