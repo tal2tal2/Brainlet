@@ -1,0 +1,13 @@
+numpy
+torch
+lightning
+scipy
+matplotlib
+seaborn
+geomloss
+wandb
+torchmetrics
+torchvision
+pandas
+pydantic
+pydantic-settings

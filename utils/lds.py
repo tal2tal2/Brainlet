@@ -103,6 +103,7 @@ def match_expert_to_state(pred_state, gt_states, num_classes=3):
 
 
 def save_series(path: str, n_series=1000, series_length=10000):
+    os.makedirs(path, exist_ok=True)
     series_list = generate_time_series(n_series=n_series, series_length=series_length)
 
     # Convert list of tuples into two arrays
