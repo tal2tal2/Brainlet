@@ -18,7 +18,7 @@ def plot_colored_lines(series, states, cmap_name, label):
 
 def time_series_prediction(gt_series, gt_states, pred_series_direct, pred_series_derivative, pred_state, name='plot',
                            save_predictions: bool = False):
-    gt_series, gt_states = gt_series[:len(pred_series_direct),:], gt_states[:len(pred_series_direct)]
+    gt_series, gt_states = gt_series[:len(pred_series_direct), :], gt_states[:len(pred_series_direct)]
     plt.figure(figsize=(8, 6))
     plot_colored_lines(gt_series, gt_states, 'Dark2', 'Ground Truth Series')
     plot_colored_lines(pred_series_direct, pred_state, 'Pastel1', 'Predicted Series')
@@ -36,8 +36,8 @@ def time_series_prediction(gt_series, gt_states, pred_series_direct, pred_series
 
 def evolution_with_background(generator, gt_series, gt_states, pred_series_direct, pred_series_derivative, pred_state,
                               name='plot', save_predictions: bool = False):
-    time_axis = np.arange(generator.series_length-generator.input_len-generator.target_len+1) * generator.dt
-    gt_series, gt_states = gt_series[:len(pred_series_direct),:], gt_states[:len(pred_series_direct)]
+    time_axis = np.arange(generator.series_length - generator.input_len - generator.target_len + 1) * generator.dt
+    gt_series, gt_states = gt_series[:len(pred_series_direct), :], gt_states[:len(pred_series_direct)]
     offset = 1.5  # shift for y variable
     fig, axs = plt.subplots(2, 1, figsize=(10, 8), gridspec_kw={'height_ratios': [1, 2]})
 
@@ -74,7 +74,7 @@ def evolution_with_background(generator, gt_series, gt_states, pred_series_direc
     plt.show()
 
 
-def dynamics_expert_assignment(model, name='plot', save_predictions: bool = False, idx:int = 0):
+def dynamics_expert_assignment(model, name='plot', save_predictions: bool = False, idx: int = 0):
     # Create a grid over state space
     x_vals = np.linspace(-5, 5, 30)
     y_vals = np.linspace(-5, 5, 30)
@@ -101,11 +101,11 @@ def dynamics_expert_assignment(model, name='plot', save_predictions: bool = Fals
     with torch.no_grad():
         # grid_tensor = torch.tensor(grid_points, dtype=torch.float32)
         pred, gating = model(hist_tensor)
-        pred = pred.cpu().numpy()[:,idx,:]
+        pred = pred.cpu().numpy()[:, idx, :]
         pred_deriv = pred[:, 0:2]  # predicted derivative
         U_pred = pred_deriv[:, 0].reshape(X.shape)
         V_pred = pred_deriv[:, 1].reshape(X.shape)
-        gate1 = gating.cpu().numpy()[:,idx,:]
+        gate1 = gating.cpu().numpy()[:, idx, :]
         expert_idx = gate1.argmax(axis=1).reshape(X.shape)
         expert_value = gate1.max(axis=1).reshape(X.shape)
 
@@ -144,6 +144,7 @@ def dynamics_expert_assignment(model, name='plot', save_predictions: bool = Fals
 
     plt.tight_layout()
     plt.show()
+
 
 def states_plot(gt_states, dt, pred_state, gt_series, pred_series_direct):
     # Plot states (ground truth vs. predicted)
@@ -207,4 +208,49 @@ def states_plot(gt_states, dt, pred_state, gt_series, pred_series_direct):
     plt.legend()
 
     sns.despine()
+    plt.show()
+
+
+def plot_predictive_error_vs_delta_time(predictions, observations, input_len=20, max_delta=3, title=None):
+    """
+    Plot predictive error vs delta time for multi-step predictions.
+
+    Args:
+        predictions: (N, K, D) array — model predictions for each t (N samples), for next K steps, each of D dims
+        observations: (N + input_len + max_delta, D) array — full observation stream to align with any delta
+        input_len: number of steps used as input (to align the prediction start index)
+        max_delta: how far to look into past/future to compute prediction error
+        title: optional title for the plot
+    """
+    N, K, D = predictions.shape
+    M = observations.shape[0]
+    deltas = np.arange(-max_delta, max_delta)
+    errors = np.full((K, len(deltas)), np.nan, dtype=float)
+
+    for i, delta in enumerate(deltas):
+        for k in range(K):  # prediction for t+1, t+2, ..., t+K
+            start = input_len + k + delta
+            end = start + N
+            if start < 0 or end > M:
+                continue  # skip out-of-bounds shifts
+
+            obs_seg = observations[start:end]  # (N, D)
+            pred_seg = predictions[:, k, :]  # (N, D)
+            errors[k, i] = np.abs(pred_seg - obs_seg).mean()
+
+    plt.figure(figsize=(8, 5))
+    for k in range(K):
+        plt.plot(
+            deltas,
+            errors[k],
+            marker='o',
+            label=f'Pred step {k + 1}'
+        )
+    plt.axvline(0, color='gray', linestyle='--', label='Aligned (δ=0)')
+    plt.xlabel("Delta time (steps)")
+    plt.ylabel("Mean absolute error")
+    plt.title(title or "Predictive error vs. delta time")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
     plt.show()

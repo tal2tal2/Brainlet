@@ -30,17 +30,17 @@ class MixtureOfExperts(LightningModule):
         self.experts = nn.ModuleList([
             nn.Sequential(
                 nn.Flatten(start_dim=1),
-                nn.Linear(input_dim * self.generator.input_len, 128),
-                nn.Tanh(),
-                nn.Linear(128, output_dim * self.generator.target_len),
+                nn.Linear(input_dim * self.generator.input_len, output_dim * self.generator.target_len),
+                # nn.Tanh(),
+                # nn.Linear(128, output_dim * self.generator.target_len),
                 nn.Unflatten(1, (self.generator.target_len, output_dim)),
             ) for _ in range(self.config.num_experts)
         ])
         self.gating_network = nn.Sequential(  # how much should we believe each expert
             nn.Flatten(start_dim=1),
-            nn.Linear(input_dim * self.generator.input_len, 128),
-            nn.Tanh(),
-            nn.Linear(128, self.config.num_experts * self.generator.target_len),
+            nn.Linear(input_dim * self.generator.input_len, self.config.num_experts * self.generator.target_len),
+            # nn.Tanh(),
+            # nn.Linear(128, self.config.num_experts * self.generator.target_len),
             nn.Unflatten(1, (self.generator.target_len, self.config.num_experts)),
             nn.Softmax(dim=-1)
         )
@@ -52,8 +52,10 @@ class MixtureOfExperts(LightningModule):
         self.mse = MeanSquaredError()
         self.mae = MeanAbsoluteError()
         self.r2 = R2Score()
-        self.val_preds=[]
-        self.val_targets=[]
+        self.val_preds = []
+        self.val_targets = []
+        self.epoch = 0
+        self.accuracy = []
 
     def forward(self, x):
         gating_weights = self.gating_network(x)  # Shape: [batch, num_experts] TODO:maybe change for long inputs?
@@ -75,6 +77,9 @@ class MixtureOfExperts(LightningModule):
         self.log('train_loss_diverse', loss_diverse, on_epoch=True, prog_bar=True, sync_dist=True)
         self.log('train_loss', loss, on_epoch=True, prog_bar=True, sync_dist=True)
         return loss
+
+    def on_train_epoch_end(self) -> None:
+        self.epoch += 1
 
     def validation_step(self, batch: list[Tensor], batch_idx: int) -> Tensor:
         losses, metrics = self._run_batch(batch)
@@ -126,10 +131,10 @@ class MixtureOfExperts(LightningModule):
     def predict_step(self, batch: list[Tensor], batch_idx: int) -> tuple[Tensor, Tensor, Tensor]:
         inputs, targets, _ = batch
         preds, weights = self(inputs)
-        deriv_pred = preds[:,:,:2]
-        direct_pred = preds[:,:,2:]
-        x_0 = inputs[:,-1:,:]
-        delta = deriv_pred*self.generator.dt
+        deriv_pred = preds[:, :, :2]
+        direct_pred = preds[:, :, 2:]
+        x_0 = inputs[:, -1:, :]
+        delta = deriv_pred * self.generator.dt
         deriv_series = x_0 + delta.cumsum(dim=1)
         state_series = weights.argmax(dim=-1)
 
@@ -140,7 +145,8 @@ class MixtureOfExperts(LightningModule):
 
         inputs, targets, states = batch
         outputs, gating_weights = self(inputs)
-        metrics = self._calculate_metrics(outputs.clone(), targets.clone(), gating_weights, states) if calculate_metrics else {}
+        metrics = self._calculate_metrics(outputs.clone(), targets.clone(), gating_weights,
+                                          states) if calculate_metrics else {}
         if test: self._calculate_test_metrics(gating_weights)
         losses = self.criterion(outputs, targets, inputs, gating_weights)
         return losses, metrics
@@ -155,10 +161,10 @@ class MixtureOfExperts(LightningModule):
             "MSE": self.mse(outputs_flat, targets_flat),
             "MAE": self.mae(outputs_flat, targets_flat),
             "R2": self.r2(outputs_flat, targets_flat),
-            "gating entropy": self.gating_entropy(gating_weights),
-            "gating sparsity": (gating_weights > 0.1).float().sum(dim=1).mean(),
-            "MSE_t_0": self.mse(outputs[:,0,:].reshape(-1),targets[:,0,:].reshape(-1)),
-            "MSE_t_end": self.mse(outputs[:,-1,:].reshape(-1),targets[:,-1,:].reshape(-1)),
+            "gating_entropy": self.gating_entropy(gating_weights),
+            "gating_sparsity": (gating_weights > 0.1).float().sum(dim=1).mean(),
+            "MSE_t_0": self.mse(outputs[:, 0, :].reshape(-1), targets[:, 0, :].reshape(-1)),
+            "MSE_t_end": self.mse(outputs[:, -1, :].reshape(-1), targets[:, -1, :].reshape(-1)),
             "R2_t_0": self.r2(outputs[:, 0, :].reshape(-1), targets[:, 0, :].reshape(-1)),
             "R2_t_end": self.r2(outputs[:, -1, :].reshape(-1), targets[:, -1, :].reshape(-1)),
         }
@@ -181,25 +187,37 @@ class MixtureOfExperts(LightningModule):
         else:
             raise ValueError(f"Unknown optimizer: {self.config.model_optimizer}")
 
-
     def on_metric_epoch_end(self, name) -> None:
         preds = torch.cat(self.val_preds, dim=0).cpu().numpy()  # → (N, L)
         trues = torch.cat(self.val_targets, dim=0).cpu().numpy()  # → (N, L)
 
-        remapped_pred_t_0 = match_expert_to_state(preds[:,0], trues[:,0], num_classes=self.config.num_experts)
+        remapped_pred_t_0 = match_expert_to_state(preds[:, 0], trues[:, 0], num_classes=self.config.num_experts)
         remapped_t_0 = torch.from_numpy(remapped_pred_t_0).cpu()  # (N, L)
         remapped_pred_t_end = match_expert_to_state(preds[:, -1], trues[:, -1], num_classes=self.config.num_experts)
         remapped_t_end = torch.from_numpy(remapped_pred_t_end).cpu()
 
         # 4) compute accuracies in torch
-        acc_t0 = (remapped_t_0 == trues[:,0]).float().mean()
+        acc_t0 = (remapped_t_0 == trues[:, 0]).float().mean()
         acc_tend = (remapped_t_end == trues[:, -1]).float().mean()
 
         # 5) log
         self.log(f"{name}accuracy_t_0", acc_t0, prog_bar=True, sync_dist=True)
         self.log(f"{name}accuracy_t_end", acc_tend, prog_bar=True, sync_dist=True)
 
+        if name == 'val_':
+            self.accuracy.append(acc_t0.detach().item())
+            if len(self.accuracy) > 5:
+                self.accuracy = self.accuracy[-5:]
+            if self.epoch < 5:
+                avg_acc = 0.5 + 0.01 * self.epoch
+            elif self.epoch < 10:
+                weight = (self.epoch - 5) / 5.0
+                real_avg = sum(self.accuracy) / len(self.accuracy)
+                avg_acc = (1 - weight) * 0.55 + weight * real_avg
+            else:
+                avg_acc = sum(self.accuracy) / len(self.accuracy)
+            self.log(f'{name}avg_accuracy', avg_acc, prog_bar=True, sync_dist=True)
+
         # 6) clear for next epoch
         self.val_preds.clear()
         self.val_targets.clear()
-

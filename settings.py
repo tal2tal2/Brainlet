@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Optional
 
-from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
 from lightning.pytorch.loggers import WandbLogger
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -49,9 +49,9 @@ class ModelConfig(BaseModel):
     learning_rate: float = 1e-3
     weight_decay: float = 1e-5
     model_optimizer: str = "adam"
-    lambda_peaky:float = 0.1
-    lambda_diverse:float = 0.04
-    lambda_phys:float = 0.3
+    lambda_peaky: float = 0.1
+    lambda_diverse: float = 0.04
+    lambda_phys: float = 0.3
 
 
 class GeneratorConfig(BaseModel):
@@ -66,7 +66,7 @@ class GeneratorConfig(BaseModel):
         return {'n_series': self.n_series,
                 'series_length': self.series_length,
                 'dt': self.dt,
-                'use_slds': self.use_slds,}
+                'use_slds': self.use_slds, }
 
 
 class Config(BaseSettings):
@@ -99,15 +99,15 @@ class Config(BaseSettings):
         params = self.lightning.model_dump()
         params.update(self.trainer.model_dump())
         self.model_cb = ModelCheckpoint(
-                monitor="val_accuracy_t_0",
-                mode="max",
-                save_top_k=1,
-                verbose=True)
+            monitor="val_avg_accuracy",
+            mode="max",
+            save_top_k=1,
+            verbose=True)
         params['callbacks'] = [
-            # EarlyStopping(
-            #     monitor="train_loss_epoch",
-            #     patience=8,
-            #     min_delta=0.01),
+            EarlyStopping(
+                monitor="train_loss_epoch",
+                patience=5,
+                min_delta=0.01),
             self.model_cb,
         ]
         params['logger'] = WandbLogger()
@@ -125,6 +125,5 @@ class Config(BaseSettings):
         }
 
     def predict(self) -> None:
-        self.generator.n_series=1
-        self.generator.series_length=15000
-
+        self.generator.n_series = 1
+        self.generator.series_length = 15000

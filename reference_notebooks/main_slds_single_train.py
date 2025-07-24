@@ -15,6 +15,8 @@ from scipy.optimize import linear_sum_assignment
 import itertools
 import pandas as pd
 
+from utils.plots import states_plot
+
 os.environ['PYTHONHASHSEED'] = '42'
 random.seed(42)
 torch.manual_seed(42)
@@ -295,9 +297,16 @@ def train_on_data(series_list, dataset, dataloader, num_epochs=10, min_delta=1e-
     # Split into training and validation sets
     train_size = int(0.8 * len(dataset))
     val_size = len(dataset) - train_size
+    length = len(series_list)
+
+    series_train = series_list[:int(length * 0.8)]
+    series_val = series_list[int(length * 0.8):int(length * (0.9))]
+    series_test = series_list[int(length * 0.9):]
     # Contiguous slicing
-    train_dataset = torch.utils.data.Subset(dataset, list(range(0, train_size//batch_size * batch_size)))
-    val_dataset = torch.utils.data.Subset(dataset, list(range(train_size//batch_size * batch_size, len(dataset)//batch_size * batch_size)))
+    train_dataset = TimeSeriesDataset(series_train, continuous_dynamics, dt=0.001, window=10)
+    val_dataset = TimeSeriesDataset(series_val, continuous_dynamics, dt=0.001, window=10)
+    test_dataset = TimeSeriesDataset(series_test, continuous_dynamics, dt=0.001, window=10)
+    # val_dataset = torch.utils.data.Subset(dataset, list(range(train_size//batch_size * batch_size, len(dataset)//batch_size * batch_size)))
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False, collate_fn=safe_collate)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=safe_collate)
     
@@ -489,7 +498,7 @@ batch_size = 256
 num_epochs = 30
 lambda_phys = 0.3       
 lambda_peaky= 0.1
-lambda_diverse= 0.3
+lambda_diverse= 0.22
 
 constant_decay = [10]#np.linspace(5, 20, 3)
 constant_scaling = [0.1]#np.linspace(0,0.1, 3)
@@ -531,10 +540,12 @@ for const_scaling in constant_scaling:
         dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
         
         print(f"train iteration number {rep}...")
-        losses, x, model, gating_weights = train_on_data(series_list, dataset, dataloader, num_epochs=num_epochs, patience=5, batch_size=batch_size, lambda_phys = lambda_phys, lambda_peaky=lambda_peaky, lambda_diverse=lambda_diverse)
+        losses, x, model, gating_weights = train_on_data(series_list, dataset, dataloader, num_epochs=num_epochs, patience=10, batch_size=batch_size, lambda_phys = lambda_phys, lambda_peaky=lambda_peaky, lambda_diverse=lambda_diverse)
         print("done")
 
         # The testing data is generated inside test_on_data
+        _, pred_series_direct, pred_state, gt_series, gt_states = test_on_data(steps = 50, constant_decay = const_decay, constant_scaling = const_scaling, window=10)
+        states_plot(gt_states[1:], 0.001, pred_state, gt_series[1:], pred_series_direct)
         pred_series_derivative, pred_series_direct, pred_state, gt_series, gt_states = test_on_data(steps = 25000, constant_decay = const_decay, constant_scaling = const_scaling, window=10)
         remapped_pred_state = match_expert_to_state(pred_state, gt_states)
         
@@ -743,7 +754,7 @@ plt.title('Loss Evolution During Training')
 plt.legend()
 # plt.grid(True)
 sns.despine()
-os.makedirs('/results/Figures' , exist_ok=True)
+os.makedirs('../results/Figures', exist_ok=True)
 plt.savefig('/results/Figures/loss_'+name+'.pdf')
 plt.show()
 
