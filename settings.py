@@ -25,7 +25,7 @@ class ModelOptimizer(str, Enum):
 class TrainerConfig(BaseModel):
     max_epochs: int = 20
     accumulate_grad_batches: int = 1
-    min_epochs: int = 5
+    min_epochs: int = 10
 
 
 class DataLoaderConfig(BaseModel):
@@ -108,6 +108,11 @@ class Config(BaseSettings):
                 monitor="train_loss_epoch",
                 patience=5,
                 min_delta=0.01),
+            EarlyStopping(
+                monitor="val_avg_accuracy",
+                mode="max",
+                patience=5,
+                min_delta=0.001),
             self.model_cb,
         ]
         params['logger'] = WandbLogger()

@@ -6,8 +6,8 @@ matplotlib
 seaborn
 geomloss
 wandb
-torchmetrics
-torchvision
-pandas
-pydantic
-pydantic-settings
+torchmetrics~=1.6.0
+torchvision~=0.20.1
+pandas~=2.2.3
+pydantic~=2.10.6
+pydantic-settings~=2.7.1
