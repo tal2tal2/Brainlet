@@ -111,7 +111,7 @@ class Config(BaseSettings):
             EarlyStopping(
                 monitor="val_avg_accuracy",
                 mode="max",
-                patience=5,
+                patience=8,
                 min_delta=0.001),
             self.model_cb,
         ]
