@@ -101,7 +101,7 @@ class Config(BaseSettings):
         self.model_cb = ModelCheckpoint(
             monitor="val_avg_accuracy",
             mode="max",
-            save_top_k=1,
+            save_top_k=3,
             verbose=True)
         params['callbacks'] = [
             EarlyStopping(
