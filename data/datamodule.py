@@ -3,7 +3,7 @@ import os
 from lightning import LightningDataModule
 from torch.utils.data import random_split, DataLoader
 
-from data.fake_data import RandomSeriesDataset
+from data.dataset import RandomSeriesDataset
 from utils.lds import generate_time_series, continuous_dynamics, load_subset
 
 
