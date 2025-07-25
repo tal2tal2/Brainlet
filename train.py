@@ -20,12 +20,13 @@ def seed_setup(random_seed):
     torch.backends.cudnn.benchmark = False
 
 
-def train(config: Config):
+def train(config: Config, datamodule = None):
     import wandb
     try:
         seed_setup(config.random_seed)
         wandb.init(project='Brainlet', config=config.get_wandb_config())
-        datamodule = DataModule(config)
+        if datamodule is None:
+            datamodule = DataModule(config)
 
         # Initialize model, optimizer, and loss function
         model = MixtureOfExperts(config.model, config.generator)
