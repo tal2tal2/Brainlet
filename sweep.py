@@ -70,7 +70,8 @@ if __name__ == '__main__':
             "test_expert_2_usage": test_results.get("test_expert_2_usage", None),
             "test_MSE": test_results.get("test_MSE", None),
             "test_MAE": test_results.get("test_MAE", None),
-            "test_R2": test_results.get("test_R2", None),
+            "test_R2_t_0": test_results.get("test_R2_t_0", None),
+            "test_R2_t_end": test_results.get("test_R2_t_end", None),
             "model_path": model_path,
         }
 
