@@ -79,14 +79,15 @@ if __name__ == '__main__':
 
         # Save or append to a shared CSV file
         results_path = f"./sweep_results{args.gpu}.csv"
-        if os.path.exists(results_path):
+        exist = os.path.exists(results_path)
+        if exist:
             df = pd.read_csv(results_path)
             df = pd.concat([df, pd.DataFrame([result_row])], ignore_index=True)
         else:
             df = pd.DataFrame([result_row])
 
         with open(results_path, "a") as f:
-            df.to_csv(f, index=False, header=not os.path.exists(results_path))
+            df.to_csv(f, index=False, header=not exist)
         torch.cuda.empty_cache()
         gc.collect()
         del cfg

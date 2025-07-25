@@ -105,7 +105,7 @@ class Config(BaseSettings):
             verbose=True)
         params['callbacks'] = [
             EarlyStopping(
-                monitor="train_loss_epoch",
+                monitor="train_loss",
                 patience=5,
                 min_delta=0.01),
             EarlyStopping(

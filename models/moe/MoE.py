@@ -71,11 +71,11 @@ class MixtureOfExperts(LightningModule):
         losses, _ = self._run_batch([inputs, targets, states], calculate_metrics=False)
         loss_mse, physics_loss, loss_peaky, loss_diverse = losses
         loss = loss_mse + physics_loss + loss_peaky + loss_diverse
-        self.log('train_loss_mse', loss_mse, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log('train_loss_physics', physics_loss, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log('train_loss_peaky', loss_peaky, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log('train_loss_diverse', loss_diverse, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log('train_loss', loss, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log('train_loss_mse', loss_mse, on_epoch=True, prog_bar=False, sync_dist=True, on_step=False)
+        self.log('train_loss_physics', physics_loss, on_epoch=True, prog_bar=False, sync_dist=True, on_step=False)
+        self.log('train_loss_peaky', loss_peaky, on_epoch=True, prog_bar=False, sync_dist=True, on_step=False)
+        self.log('train_loss_diverse', loss_diverse, on_epoch=True, prog_bar=False, sync_dist=True, on_step=False)
+        self.log('train_loss', loss, on_epoch=True, prog_bar=True, sync_dist=True, on_step=False)
         return loss
 
     def on_train_epoch_end(self) -> None:
@@ -85,13 +85,13 @@ class MixtureOfExperts(LightningModule):
         losses, metrics = self._run_batch(batch)
         loss_mse, physics_loss, loss_peaky, loss_diverse = losses
         loss = loss_mse + physics_loss + loss_peaky + loss_diverse
-        self.log('val_loss_mse', loss_mse, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log('val_loss_physics', physics_loss, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log('val_loss_peaky', loss_peaky, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log('val_loss_diverse', loss_diverse, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log('val_loss', loss, sync_dist=True)
+        self.log('val_loss_mse', loss_mse, on_epoch=True, prog_bar=False, sync_dist=True, on_step=False)
+        self.log('val_loss_physics', physics_loss, on_epoch=True, prog_bar=False, sync_dist=True, on_step=False)
+        self.log('val_loss_peaky', loss_peaky, on_epoch=True, prog_bar=False, sync_dist=True, on_step=False)
+        self.log('val_loss_diverse', loss_diverse, on_epoch=True, prog_bar=False, sync_dist=True, on_step=False)
+        self.log('val_loss', loss, prog_bar=True, sync_dist=True, on_step=False)
         val_metrics = {f'val_{key}': value for key, value in metrics.items()}
-        self.log_dict(val_metrics, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log_dict(val_metrics, on_epoch=True, prog_bar=False, sync_dist=True, on_step=False)
         return loss
 
     def on_validation_epoch_end(self) -> None:
@@ -101,13 +101,13 @@ class MixtureOfExperts(LightningModule):
         losses, metrics = self._run_batch(batch, test=True)
         loss_mse, physics_loss, loss_peaky, loss_diverse = losses
         loss = loss_mse + physics_loss + loss_peaky + loss_diverse
-        self.log('test_loss_mse', loss_mse, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log('test_loss_physics', physics_loss, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log('test_loss_peaky', loss_peaky, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log('test_loss_diverse', loss_diverse, on_epoch=True, prog_bar=True, sync_dist=True)
-        self.log('test_loss', loss, sync_dist=True)
+        self.log('test_loss_mse', loss_mse, on_epoch=True, prog_bar=False, sync_dist=True, on_step=False)
+        self.log('test_loss_physics', physics_loss, on_epoch=True, prog_bar=False, sync_dist=True, on_step=False)
+        self.log('test_loss_peaky', loss_peaky, on_epoch=True, prog_bar=False, sync_dist=True, on_step=False)
+        self.log('test_loss_diverse', loss_diverse, on_epoch=True, prog_bar=False, sync_dist=True, on_step=False)
+        self.log('test_loss', loss, sync_dist=True, on_step=False)
         test_metrics = {f'test_{key}': value for key, value in metrics.items()}
-        self.log_dict(test_metrics, on_epoch=True, prog_bar=True, sync_dist=True)
+        self.log_dict(test_metrics, on_epoch=True, prog_bar=False, sync_dist=True, on_step=False)
         return loss
 
     def on_test_epoch_end(self) -> None:
