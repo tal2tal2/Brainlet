@@ -1,6 +1,7 @@
 import argparse
 import gc
 import os
+import random
 import re
 from itertools import product
 
@@ -61,6 +62,11 @@ if __name__ == '__main__':
     args = parse_args()
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
     sweep_length = 6
+
+    config = Config()
+    datamodule = DataModule(config)
+    results_path = f"./sweep_results{args.gpu}.csv"
+
     parameters = {
         "lambda_phys": np.linspace(0.01, 5, sweep_length),
         "lambda_peaky": np.linspace(0.01, 0.3, sweep_length),
@@ -71,14 +77,13 @@ if __name__ == '__main__':
         parameters["lambda_peaky"],
         parameters["lambda_diverse"]
     ))
+    random.seed(config.random_seed)  # Use any constant seed
+    random.shuffle(sweep_values)
     total_jobs = len(sweep_values)
     jobs_per_rank = total_jobs // args.world_size
     start = args.rank * jobs_per_rank
     end = start + jobs_per_rank if args.rank < args.world_size - 1 else total_jobs
 
-    config = Config()
-    datamodule = DataModule(config)
-    results_path = f"./sweep_results{args.gpu}.csv"
 
     print(f"GPU {args.gpu} handling jobs {start} to {end}")
     for i, (lambda_phys, lambda_peaky, lambda_diverse) in enumerate(sweep_values[start:end], start=start):
