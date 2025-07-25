@@ -1,3 +1,4 @@
+import gc
 import os
 import random
 
@@ -33,7 +34,14 @@ def train(config: Config):
         trainer.fit(model, datamodule)
         model.eval()
         test_results = trainer.test(model, datamodule, verbose=False)[0]  # get first result dict
-        return test_results, wandb.run.id
+        id = wandb.run.id
+        del trainer
+        del model
+        del datamodule
+        torch.cuda.empty_cache()
+        gc.collect()
+        wandb.finish()
+        return test_results, id
     finally:
         wandb.finish()
 

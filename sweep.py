@@ -1,10 +1,12 @@
 import argparse
+import gc
 import os
 import re
 from itertools import product
 
 import numpy as np
 import pandas as pd
+import torch
 
 from settings import Config
 from train import train
@@ -21,9 +23,9 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
-    sweep_length = 2
+    sweep_length = 6
     parameters = {
-        "lambda_phys": np.linspace(0.1, 10, sweep_length),
+        "lambda_phys": np.linspace(0.01, 5, sweep_length),
         "lambda_peaky": np.linspace(0.01, 0.3, sweep_length),
         "lambda_diverse": np.linspace(0.01, 0.3, sweep_length),
     }
@@ -83,4 +85,8 @@ if __name__ == '__main__':
         else:
             df = pd.DataFrame([result_row])
 
-        df.to_csv(results_path, index=False)
+        with open(results_path, "a") as f:
+            df.to_csv(f, index=False, header=not os.path.exists(results_path))
+        torch.cuda.empty_cache()
+        gc.collect()
+        del cfg
