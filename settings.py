@@ -52,6 +52,7 @@ class ModelConfig(BaseModel):
     lambda_peaky: float = 0.1
     lambda_diverse: float = 0.04
     lambda_phys: float = 0.3
+    lambda_time: float = 1
 
 
 class GeneratorConfig(BaseModel):
@@ -62,6 +63,7 @@ class GeneratorConfig(BaseModel):
     input_len: int = 5
     target_len: int = 3
     derivative: bool = True
+    time: bool = True
 
     def get_generator_params(self) -> dict:
         return {'n_series': self.n_series,
@@ -108,7 +110,7 @@ class Config(BaseSettings):
             EarlyStopping(
                 monitor="train_loss",
                 patience=5,
-                min_delta=0.01),
+                min_delta=0.0001),
             EarlyStopping(
                 monitor="val_avg_accuracy",
                 mode="max",

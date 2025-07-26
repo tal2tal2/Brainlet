@@ -25,6 +25,9 @@ class RandomSeriesDataset(Dataset):
                 second_deriv = np.diff(first_deriv, axis=0, prepend=first_deriv[0:1])
             for t in range(len(series)-input_len-target_len+1): # TODO: do i want to have larger steps?
                 x_t = series[t:t+input_len]
+                if self.generator.time:
+                    pos = np.linspace(0,0.5, input_len)[:, None]
+                    x_t = np.concatenate([x_t, pos], axis=1)
                 x_next = series[t+input_len:t+input_len+target_len]
                 state_list = states[t + input_len:t + input_len + target_len]
                 fts = []

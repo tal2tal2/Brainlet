@@ -22,6 +22,8 @@ class MixtureOfExperts(LightningModule):
         self.generator = generator
         if self.generator.derivative:
             input_dim = input_dim * 3
+        if self.generator.time:
+            input_dim = input_dim + 1
         # self.domains = nn.ModuleList([
         #     nn.Identity(),  # raw time‐series
         #     lambda x: x[:, 1:, :] - x[:, :-1, :],  # velocity (B,L_in-1,D) – you may pad/upsample
