@@ -61,7 +61,7 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
-    sweep_length = 6
+    sweep_length = 8
 
     config = Config()
     datamodule = DataModule(config)
@@ -77,7 +77,6 @@ if __name__ == '__main__':
         parameters["lambda_peaky"],
         parameters["lambda_diverse"]
     ))
-    random.seed(config.random_seed)  # Use any constant seed
     random.shuffle(sweep_values)
     total_jobs = len(sweep_values)
     jobs_per_rank = total_jobs // args.world_size
