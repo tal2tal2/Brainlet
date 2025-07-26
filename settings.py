@@ -61,6 +61,7 @@ class GeneratorConfig(BaseModel):
     use_slds: bool = False
     input_len: int = 5
     target_len: int = 3
+    derivative: bool = True
 
     def get_generator_params(self) -> dict:
         return {'n_series': self.n_series,

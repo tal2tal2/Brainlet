@@ -20,6 +20,8 @@ class MixtureOfExperts(LightningModule):
         super(MixtureOfExperts, self).__init__()
         self.config = config
         self.generator = generator
+        if self.generator.derivative:
+            input_dim = input_dim * 3
         # self.domains = nn.ModuleList([
         #     nn.Identity(),  # raw time‐series
         #     lambda x: x[:, 1:, :] - x[:, :-1, :],  # velocity (B,L_in-1,D) – you may pad/upsample
@@ -209,11 +211,11 @@ class MixtureOfExperts(LightningModule):
             if len(self.accuracy) > 5:
                 self.accuracy = self.accuracy[-5:]
             if self.epoch < 5:
-                avg_acc = 0.5 + 0.01 * self.epoch
+                avg_acc = 0.4 + 0.01 * self.epoch
             elif self.epoch < 10:
                 weight = (self.epoch - 5) / 5.0
                 real_avg = sum(self.accuracy) / len(self.accuracy)
-                avg_acc = (1 - weight) * 0.55 + weight * real_avg
+                avg_acc = (1 - weight) * 0.45 + weight * real_avg
             else:
                 avg_acc = sum(self.accuracy) / len(self.accuracy)
             self.log(f'{name}avg_accuracy', avg_acc, prog_bar=True, sync_dist=True)

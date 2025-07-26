@@ -20,19 +20,28 @@ class RandomSeriesDataset(Dataset):
         input_len = self.generator.input_len
         target_len = self.generator.target_len
         for series, states in series_list:
+            if self.generator.derivative:
+                first_deriv = np.diff(series, axis=0, prepend=series[0:1])
+                second_deriv = np.diff(first_deriv, axis=0, prepend=first_deriv[0:1])
             for t in range(len(series)-input_len-target_len+1): # TODO: do i want to have larger steps?
                 x_t = series[t:t+input_len]
                 x_next = series[t+input_len:t+input_len+target_len]
+                state_list = states[t + input_len:t + input_len + target_len]
                 fts = []
-                state_list=[]
                 # need loop to predict next derivatives
-                for i in range(target_len):
-                    idx = t + input_len + i
-                    f_t, _ = dynamics(series[idx], states[idx])
-                    fts.append(f_t)
-                    state_list.append(states[idx])
-                target = np.concatenate([np.stack(fts, axis=0), x_next], axis=1)
-                state_list = np.stack(state_list, axis=0)
+                if self.generator.derivative:
+                    x_t_d = first_deriv[t:t+input_len]
+                    x_next_d = first_deriv[t+input_len:t+input_len+target_len]
+                    x_t_2d = second_deriv[t:t+input_len]
+
+                    x_t = np.concatenate([x_t, x_t_d, x_t_2d], axis=1)
+                    target = np.concatenate([x_next_d, x_next], axis=1)
+                else:
+                    for i in range(target_len):
+                        idx = t + input_len + i
+                        f_t, _ = dynamics(series[idx], states[idx])
+                        fts.append(f_t)
+                    target = np.concatenate([np.stack(fts, axis=0), x_next], axis=1)
                 self.samples.append((x_t, target, state_list))
 
     def __len__(self):
