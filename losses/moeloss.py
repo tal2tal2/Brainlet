@@ -10,7 +10,8 @@ class MoELoss(torch.nn.Module):
         self.lambda_diverse = model.lambda_diverse
         self.lambda_phys = model.lambda_phys
         self.lambda_time = model.lambda_time
-        self.mse = torch.nn.MSELoss(reduction="none")
+        reduction = 'mean' if self.lambda_time==0 else 'none'
+        self.mse = torch.nn.MSELoss(reduction=reduction)
         self.derivative = generator.derivative
         self.dt = generator.dt
         self.target_len = generator.target_len
@@ -21,15 +22,20 @@ class MoELoss(torch.nn.Module):
         time_weights = time_weights / time_weights.sum()
         return time_weights
 
-    def get_time_weights(self, device):
+    def get_time_mse(self, outputs, targets):
+        if self.lambda_time==0:
+            return self.mse(outputs, targets)
+        device = targets.device
         weights = torch.linspace(0, 1, steps=self.target_len, device=device)
         weights = torch.exp(weights * self.lambda_time)
-        return weights / weights.sum()
+        weights =  weights / weights.sum()
+        return (self.mse(outputs, targets).mean(dim=-1) * weights).mean()
+
 
     def __call__(self, outputs, targets, inputs, weights):
-        loss_mse = (self.mse(outputs, targets).mean(dim=-1) * self.get_time_weights(targets.device)).mean()
+        loss_mse = self.get_time_mse(outputs, targets)
         f_pred = outputs[:, :, :2]  # First two elements are the predicted derivative
-        if not self.derivative: f_pred *= self.dt
+        if not self.derivative: f_pred = f_pred * self.dt
         x_next_pred = outputs[:, :, 2:]  # Last two elements are the predicted next state
         combine_phys = torch.cat([inputs[:, -1:, 0:2], targets[:, :-1, 2:]], dim=1)
 
@@ -38,8 +44,7 @@ class MoELoss(torch.nn.Module):
         avg_entropy = -torch.sum(p_mean * torch.log(p_mean + 1e-8))
         loss_peaky = self.lambda_peaky * sample_entropy
         loss_diverse = - self.lambda_diverse * avg_entropy
-        physical_mse = (self.mse(x_next_pred, combine_phys + f_pred).mean(dim=-1) * self.get_time_weights(
-            targets.device)).mean()
+        physical_mse = self.get_time_mse(x_next_pred, combine_phys + f_pred)
 
         physics_loss = self.lambda_phys * physical_mse
         return loss_mse, physics_loss, loss_peaky, loss_diverse
