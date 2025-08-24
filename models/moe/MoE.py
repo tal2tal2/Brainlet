@@ -137,7 +137,7 @@ class MixtureOfExperts(LightningModule):
         preds, weights = self(inputs)
         deriv_pred = preds[:, :, :2]
         direct_pred = preds[:, :, 2:]
-        x_0 = inputs[:, -1:, :]
+        x_0 = inputs[:, -1:, :2]
         delta = deriv_pred * self.generator.dt
         deriv_series = x_0 + delta.cumsum(dim=1)
         state_series = weights.argmax(dim=-1)

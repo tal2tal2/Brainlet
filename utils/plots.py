@@ -74,6 +74,25 @@ def evolution_with_background(generator, gt_series, gt_states, pred_series_direc
     plt.show()
 
 
+def prepare_model_input(hist: torch.Tensor, generator) -> torch.Tensor:
+    features = [hist]  # raw input
+
+    if generator.derivative:
+        vel = hist[:, 1:, :] - hist[:, :-1, :]                      # velocity
+        vel = torch.nn.functional.pad(vel, (0, 0, 1, 0))            # pad to match length
+        acc = vel[:, 1:, :] - vel[:, :-1, :]
+        acc = torch.nn.functional.pad(acc, (0, 0, 1, 0))            # pad to match
+        features += [vel, acc]
+
+    if generator.time:
+        batch_size, seq_len, _ = hist.shape
+        time = torch.linspace(0, seq_len * generator.dt, seq_len, device=hist.device)
+        time = time.repeat(batch_size, 1).unsqueeze(-1)             # (B, L, 1)
+        features.append(time)
+
+    return torch.cat(features, dim=-1)
+
+
 def dynamics_expert_assignment(model, name='plot', save_predictions: bool = False, idx: int = 0):
     # Create a grid over state space
     x_vals = np.linspace(-5, 5, 30)
@@ -95,6 +114,7 @@ def dynamics_expert_assignment(model, name='plot', save_predictions: bool = Fals
     # from (N,2) → (N, L_in, 2)
     hist = np.repeat(grid_points[:, None, :], L_in, axis=1)
     hist_tensor = torch.tensor(hist, dtype=torch.float32).to(model.device)
+    hist_tensor = prepare_model_input(hist_tensor, model.generator)
 
     # Model predictions on grid (using the first two output values as derivative)
     model.eval()
