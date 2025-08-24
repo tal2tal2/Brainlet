@@ -73,7 +73,7 @@ class GeneratorConfig(BaseModel):
 
 
 class Config(BaseSettings):
-    data_dir: str = r"D:\TheFolder\projects\School\Master\yoni\data"
+    data_dir: str = r"D:\TheFolder\projects\School\Master\Stefano\data"
     use_fake_dataset: bool = True
     random_seed: int = 42
     checkpoint: Optional[str] = None

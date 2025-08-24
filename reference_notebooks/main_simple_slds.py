@@ -171,7 +171,7 @@ def gating_regularization(gating_weights, lambda_peaky=0.1, lambda_diverse=0.1):
 # Training Setup
 # ------------------------------
 
-# Generate series and create dataset (using continuous dynamics here)
+# Generate series and create fake_dataset (using continuous dynamics here)
 series_list = generate_time_series(n_series=20, series_length=10000, dt=0.001, use_slds=False)
 dataset = TimeSeriesDataset(series_list, continuous_dynamics, dt=0.001)
 dataloader = DataLoader(dataset, batch_size=64, shuffle=True)

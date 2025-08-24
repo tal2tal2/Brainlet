@@ -306,7 +306,7 @@ def train_on_data(series_list, dataset, dataloader, num_epochs=10, min_delta=1e-
     train_dataset = TimeSeriesDataset(series_train, continuous_dynamics, dt=0.001, window=10)
     val_dataset = TimeSeriesDataset(series_val, continuous_dynamics, dt=0.001, window=10)
     test_dataset = TimeSeriesDataset(series_test, continuous_dynamics, dt=0.001, window=10)
-    # val_dataset = torch.utils.data.Subset(dataset, list(range(train_size//batch_size * batch_size, len(dataset)//batch_size * batch_size)))
+    # val_dataset = torch.utils.data.Subset(fake_dataset, list(range(train_size//batch_size * batch_size, len(fake_dataset)//batch_size * batch_size)))
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False, collate_fn=safe_collate)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=safe_collate)
     
@@ -534,7 +534,7 @@ for const_scaling in constant_scaling:
         print(f"const_decay: {const_decay}")
         print(f"const_scaling: {const_scaling}")
 
-        # Generate series and create dataset 
+        # Generate series and create fake_dataset
         series_list = generate_time_series(n_series=50, series_length=5000, dt=0.001, use_slds=True, constant_decay = const_decay, constant_scaling = const_scaling)
         dataset = TimeSeriesDataset(series_list, continuous_dynamics, dt=0.001, window=10)
         dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
@@ -736,7 +736,7 @@ plt.show()
 # Training Setup
 # ------------------------------
 
-# Generate series and create dataset (using continuous dynamics here)
+# Generate series and create fake_dataset (using continuous dynamics here)
 series_list = generate_time_series(n_series=20, series_length=10000, dt=0.001, use_slds=True)
 dataset = TimeSeriesDataset(series_list, continuous_dynamics, dt=0.001)
 dataloader = DataLoader(dataset, batch_size=16, shuffle=True)

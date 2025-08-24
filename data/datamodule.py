@@ -3,7 +3,7 @@ import os
 from lightning import LightningDataModule
 from torch.utils.data import random_split, DataLoader
 
-from data.dataset import RandomSeriesDataset
+from data.fake_dataset import RandomSeriesDataset
 from utils.lds import generate_time_series, continuous_dynamics, load_subset
 
 
@@ -46,8 +46,8 @@ class DataModule(LightningDataModule):
         return DataLoader(self.predict_dataset, shuffle=False, **self.data_loader)
 
     def get_random_series(self):
-        if os.path.isfile('./data/dataset/series.npy'):
-            series_list = load_subset('./data/dataset', end=self.generator.n_series)
+        if os.path.isfile('./data/fake_dataset/series.npy'):
+            series_list = load_subset('./data/fake_dataset', end=self.generator.n_series)
         else:
             series_list = generate_time_series(**self.generator.get_generator_params())
         length = len(series_list)

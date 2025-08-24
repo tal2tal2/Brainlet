@@ -4,7 +4,7 @@ import torch
 from lightning import Trainer
 from torch.utils.data import DataLoader
 
-from data.dataset import RandomSeriesDataset
+from data.fake_dataset import RandomSeriesDataset
 from settings import Config
 from utils.lds import generate_time_series, continuous_dynamics
 from utils.loaders import get_model_checkpoint

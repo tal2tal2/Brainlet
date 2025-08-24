@@ -507,7 +507,7 @@ for const_scaling in constant_scaling:
         print(f"const_decay: {const_decay}")
         print(f"const_scaling: {const_scaling}")
 
-        # Generate series and create dataset 
+        # Generate series and create fake_dataset
         series_list = generate_time_series(n_series=50, series_length=5000, dt=0.001, use_slds=True,
                                            constant_decay=const_decay, constant_scaling=const_scaling)
         dataset = TimeSeriesDataset(series_list, continuous_dynamics, dt=0.001)
@@ -647,7 +647,7 @@ plt.show()
 # Training Setup
 # ------------------------------
 
-# Generate series and create dataset (using continuous dynamics here)
+# Generate series and create fake_dataset (using continuous dynamics here)
 series_list = generate_time_series(n_series=20, series_length=10000, dt=0.001, use_slds=True)
 dataset = TimeSeriesDataset(series_list, continuous_dynamics, dt=0.001)
 dataloader = DataLoader(dataset, batch_size=64, shuffle=True)

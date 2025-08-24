@@ -122,4 +122,4 @@ def load_subset(path, start=0, end=-1):
 
 
 if __name__ == "__main__":
-    save_series("../data/dataset", n_series=100, series_length=10000)
+    save_series("../data/fake_dataset", n_series=100, series_length=10000)
